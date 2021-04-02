@@ -159,7 +159,148 @@ using System;
 
 # 3、面向对象编程
 
-封装
+## 封装
+
+- public:任何公有成员可以被外部的类访问。
+- private:只有同一个类中的函数可以访问它的私有成员。
+- protected:允许子类访问它的基类的成员变量和成员函数
+- internal:带有 internal 访问修饰符的任何成员可以被定义在该成员所定义的应用程序内的任何类或方法访问。
+- protected internal:允许在本类,派生类或者包含该类的程序集中访问
+
+## C#的可空类型
+
+> 可空类型可以表示其基础值类型正常范围内的值，再加上一个 null 值。
+>
+> 在处理数据库和其他包含可能未赋值的元素的数据类型时，将 null 赋值给数值类型或布尔型的功能特别有用。例如，数据库中的布尔型字段可以存储值 true 或 false，或者，该字段也可以未定义。
+
+`?` 与`??`
+
+- **?** : 单问号用于对 int,double,bool 等无法直接赋值为 null 的数据类型进行 null 的赋值，意思是这个数据类型是 Nullable 类型的。
+
+  ```c#
+  int? i = 3;
+  int i;//默认值为0
+  int? ii; //默认值为null
+  
+  int? num1 = null;
+  int? num2 = 45;
+  double? num3 = new double?();
+  double? num4 = 3.1415;
+  
+  bool? boolval = new bool?();
+  ```
+
+- `?？`：双问号 可用于判断一个变量在为 null 时返回一个指定的值
+
+  ```c#
+  double? num1 = null;
+  double? num2 = 3.1415;
+  double num3 = num1 ?? 5.34; //num3不可能为null
+  Console.WriteLine(num3); //输出5.34
+  Console.WriteLine(num2 ?? 5.34); //输出3.1415
+  ```
+
+  > 类似三目运算符 `x==null?y:x` 
+
+## 数组
+
+> 数组是一个引用类型，需要使用 **new** 关键字来创建数组的实例
+
+### 初始化
+
+```c#
+double[] balance = new double[10];
+double[] balance = { 2340.0, 4523.69, 3421.0};
+int [] marks = new int[5]  { 99,  98, 92, 97, 95};
+int [] marks = new int[]  { 99,  98, 92, 97, 95};
+
+int [] marks = new int[]  { 99,  98, 92, 97, 95};
+int[] score = marks;
+```
+
+### 使用for each 循环便利数组
+
+```c#
+int[] a = new int[] { 1, 2, 3, 4, 5 };
+foreach(int x in a)
+{
+    Console.WriteLine(x);
+}
+```
+
+## string 对象
+
+### 创建 String 对象
+
+可以使用以下方法之一来创建 string 对象：
+
+- 通过给 String 变量指定一个字符串
+- 通过使用 String 类构造函数 可以传入char数组
+- 通过使用字符串串联运算符（ + ）
+- 通过检索属性或调用一个返回字符串的方法
+- 通过格式化方法来转换一个值或对象为它的字符串表示形式
+
+### string类的方法
+
+| 序号 | 方法名称 & 描述                                              |
+| :--- | :----------------------------------------------------------- |
+| 1    | **public static int Compare( string strA, string strB )** 比较两个指定的 string 对象，并返回一个表示它们在排列顺序中相对位置的整数。该方法区分大小写。 |
+| 2    | **public static int Compare( string strA, string strB, bool ignoreCase )** 比较两个指定的 string 对象，并返回一个表示它们在排列顺序中相对位置的整数。但是，如果布尔参数为真时，该方法不区分大小写。 |
+| 3    | **public static string Concat( string str0, string str1 )** 连接两个 string 对象。 |
+| 4    | **public static string Concat( string str0, string str1, string str2 )** 连接三个 string 对象。 |
+| 5    | **public static string Concat( string str0, string str1, string str2, string str3 )** 连接四个 string 对象。 |
+| 6    | **public bool Contains( string value )** 返回一个表示指定 string 对象是否出现在字符串中的值。 |
+| 7    | **public static string Copy( string str )** 创建一个与指定字符串具有相同值的新的 String 对象。 |
+| 8    | **public void CopyTo( int sourceIndex, char[] destination, int destinationIndex, int count )** 从 string 对象的指定位置开始复制指定数量的字符到 Unicode 字符数组中的指定位置。 |
+| 9    | **public bool EndsWith( string value )** 判断 string 对象的结尾是否匹配指定的字符串。 |
+| 10   | **public bool Equals( string value )** 判断当前的 string 对象是否与指定的 string 对象具有相同的值。 |
+| 11   | **public static bool Equals( string a, string b )** 判断两个指定的 string 对象是否具有相同的值。 |
+| 12   | **public static string Format( string format, Object arg0 )** 把指定字符串中一个或多个格式项替换为指定对象的字符串表示形式。 |
+| 13   | **public int IndexOf( char value )** 返回指定 Unicode 字符在当前字符串中第一次出现的索引，索引从 0 开始。 |
+| 14   | **public int IndexOf( string value )** 返回指定字符串在该实例中第一次出现的索引，索引从 0 开始。 |
+| 15   | **public int IndexOf( char value, int startIndex )** 返回指定 Unicode 字符从该字符串中指定字符位置开始搜索第一次出现的索引，索引从 0 开始。 |
+| 16   | **public int IndexOf( string value, int startIndex )** 返回指定字符串从该实例中指定字符位置开始搜索第一次出现的索引，索引从 0 开始。 |
+| 17   | **public int IndexOfAny( char[] anyOf )** 返回某一个指定的 Unicode 字符数组中任意字符在该实例中第一次出现的索引，索引从 0 开始。 |
+| 18   | **public int IndexOfAny( char[] anyOf, int startIndex )** 返回某一个指定的 Unicode 字符数组中任意字符从该实例中指定字符位置开始搜索第一次出现的索引，索引从 0 开始。 |
+| 19   | **public string Insert( int startIndex, string value )** 返回一个新的字符串，其中，指定的字符串被插入在当前 string 对象的指定索引位置。 |
+| 20   | **public static bool IsNullOrEmpty( string value )** 指示指定的字符串是否为 null 或者是否为一个空的字符串。 |
+| 21   | **public static string Join( string separator, string[] value )** 连接一个字符串数组中的所有元素，使用指定的分隔符分隔每个元素。 |
+| 22   | **public static string Join( string separator, string[] value, int startIndex, int count )** 连接接一个字符串数组中的指定位置开始的指定元素，使用指定的分隔符分隔每个元素。 |
+| 23   | **public int LastIndexOf( char value )** 返回指定 Unicode 字符在当前 string 对象中最后一次出现的索引位置，索引从 0 开始。 |
+| 24   | **public int LastIndexOf( string value )** 返回指定字符串在当前 string 对象中最后一次出现的索引位置，索引从 0 开始。 |
+| 25   | **public string Remove( int startIndex )** 移除当前实例中的所有字符，从指定位置开始，一直到最后一个位置为止，并返回字符串。 |
+| 26   | **public string Remove( int startIndex, int count )** 从当前字符串的指定位置开始移除指定数量的字符，并返回字符串。 |
+| 27   | **public string Replace( char oldChar, char newChar )** 把当前 string 对象中，所有指定的 Unicode 字符替换为另一个指定的 Unicode 字符，并返回新的字符串。 |
+| 28   | **public string Replace( string oldValue, string newValue )** 把当前 string 对象中，所有指定的字符串替换为另一个指定的字符串，并返回新的字符串。 |
+| 29   | **public string[] Split( params char[] separator )** 返回一个字符串数组，包含当前的 string 对象中的子字符串，子字符串是使用指定的 Unicode 字符数组中的元素进行分隔的。 |
+| 30   | **public string[] Split( char[] separator, int count )** 返回一个字符串数组，包含当前的 string 对象中的子字符串，子字符串是使用指定的 Unicode 字符数组中的元素进行分隔的。int 参数指定要返回的子字符串的最大数目。 |
+| 31   | **public bool StartsWith( string value )** 判断字符串实例的开头是否匹配指定的字符串。 |
+| 32   | **public char[] ToCharArray()** 返回一个带有当前 string 对象中所有字符的 Unicode 字符数组。 |
+| 33   | **public char[] ToCharArray( int startIndex, int length )** 返回一个带有当前 string 对象中所有字符的 Unicode 字符数组，从指定的索引开始，直到指定的长度为止。 |
+| 34   | **public string ToLower()** 把字符串转换为小写并返回。       |
+| 35   | **public string ToUpper()** 把字符串转换为大写并返回。       |
+| 36   | **public string Trim()** 移除当前 String 对象中的所有前导空白字符和后置空白字符。 |
+
+
+
+## 结构体
+
+C#结构体与C++的不同
+
+- 结构可带有方法、字段、索引、属性、运算符方法和事件。
+- 结构可定义构造函数，但不能定义析构函数。但是，您不能为结构定义无参构造函数。无参构造函数(默认)是自动定义的，且不能被改变。
+- 与类不同，结构不能继承其他的结构或类。
+- 结构不能作为其他结构或类的基础结构。
+- 结构可实现一个或多个接口。
+- 结构成员不能指定为 abstract、virtual 或 protected。
+- 当您使用 **New** 操作符创建一个结构对象时，会调用适当的构造函数来创建结构。与类不同，结构可以不使用 New 操作符即可被实例化。
+- 如果不使用 New 操作符，只有在所有的字段都被初始化之后，字段才被赋值，对象才被使用。
+
+
+
+
+
+
 
 
 
