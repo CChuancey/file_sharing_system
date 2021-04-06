@@ -811,6 +811,369 @@ finally
 
 # 5、IO
 
+System.IO 命名空间有各种不同的类，用于执行各种文件操作，如创建和删除文件、读取或写入文件，关闭文件等。
+
+下表列出了一些 System.IO 命名空间中常用的非抽象类：
+
+| I/O 类         | 描述                               |
+| :------------- | :--------------------------------- |
+| BinaryReader   | 从二进制流读取原始数据。           |
+| BinaryWriter   | 以二进制格式写入原始数据。         |
+| BufferedStream | 字节流的临时存储。                 |
+| Directory      | 有助于操作目录结构。               |
+| DirectoryInfo  | 用于对目录执行操作。               |
+| DriveInfo      | 提供驱动器的信息。                 |
+| File           | 有助于处理文件。                   |
+| FileInfo       | 用于对文件执行操作。               |
+| FileStream     | 用于文件中任何位置的读写。         |
+| MemoryStream   | 用于随机访问存储在内存中的数据流。 |
+| Path           | 对路径信息执行操作。               |
+| StreamReader   | 用于从字节流中读取字符。           |
+| StreamWriter   | 用于向一个流中写入字符。           |
+| StringReader   | 用于读取字符串缓冲区。             |
+| StringWriter   | 用于写入字符串缓冲区。             |
+
+## FileStream 类
+
+System.IO 命名空间中的 **FileStream** 类有助于文件的读写与关闭。该类派生自抽象类 Stream。
+
+创建一个 FileStream 对象来创建一个新的文件，或打开一个已有的文件。创建 FileStream 对象的语法如下：
+
+```c#
+FileStream <object_name> = new FileStream( <file_name>,
+				<FileMode Enumerator>, <FileAccess Enumerator>, <FileShare Enumerator>);
+
+//创建一个 FileStream 对象 F 来读取名为 sample.txt 的文件：
+FileStream F = new FileStream("sample.txt", FileMode.Open, FileAccess.Read, FileShare.Read);
+```
+
+| 参数       | 描述                                                         |
+| :--------- | :----------------------------------------------------------- |
+| FileMode   | **FileMode** 枚举定义了各种打开文件的方法。FileMode 枚举的成员有：**Append**：打开一个已有的文件，并将光标放置在文件的末尾。如果文件不存在，则创建文件。**Create**：创建一个新的文件。如果文件已存在，则删除旧文件，然后创建新文件。**CreateNew**：指定操作系统应创建一个新的文件。如果文件已存在，则抛出异常。**Open**：打开一个已有的文件。如果文件不存在，则抛出异常。**OpenOrCreate**：指定操作系统应打开一个已有的文件。如果文件不存在，则用指定的名称创建一个新的文件打开。**Truncate**：打开一个已有的文件，文件一旦打开，就将被截断为零字节大小。然后我们可以向文件写入全新的数据，但是保留文件的初始创建日期。如果文件不存在，则抛出异常。 |
+| FileAccess | **FileAccess** 枚举的成员有：**Read**、**ReadWrite** 和 **Write**。 |
+| FileShare  | **FileShare** 枚举的成员有：**Inheritable**：允许文件句柄可由子进程继承。Win32 不直接支持此功能。**None**：谢绝共享当前文件。文件关闭前，打开该文件的任何请求（由此进程或另一进程发出的请求）都将失败。**Read**：允许随后打开文件读取。如果未指定此标志，则文件关闭前，任何打开该文件以进行读取的请求（由此进程或另一进程发出的请求）都将失败。但是，即使指定了此标志，仍可能需要附加权限才能够访问该文件。**ReadWrite**：允许随后打开文件读取或写入。如果未指定此标志，则文件关闭前，任何打开该文件以进行读取或写入的请求（由此进程或另一进程发出）都将失败。但是，即使指定了此标志，仍可能需要附加权限才能够访问该文件。**Write**：允许随后打开文件写入。如果未指定此标志，则文件关闭前，任何打开该文件以进行写入的请求（由此进程或另一进过程发出的请求）都将失败。但是，即使指定了此标志，仍可能需要附加权限才能够访问该文件。**Delete**：允许随后删除文件。 |
+
+## 高级文件操作
+
+| 主题                                                         | 描述                                                         |
+| :----------------------------------------------------------- | :----------------------------------------------------------- |
+| [文本文件的读写](https://www.runoob.com/csharp/csharp-text-files.html) | 它涉及到文本文件的读写。**StreamReader** 和 **StreamWriter** 类有助于完成文本文件的读写。 |
+| [二进制文件的读写](https://www.runoob.com/csharp/csharp-binary-files.html) | 它涉及到二进制文件的读写。**BinaryReader** 和 **BinaryWriter** 类有助于完成二进制文件的读写。 |
+| [Windows 文件系统的操作](https://www.runoob.com/csharp/csharp-windows-file-system.html) | 它让 C# 程序员能够浏览并定位 Windows 文件和目录。            |
+
+### 文本文件的读写
+
+**StreamReader** 和 **StreamWriter** 类用于文本文件的数据读写。这些类从抽象基类 Stream 继承，Stream 支持文件流的字节读写。
+
+-  **StreamReader 类**
+
+  **StreamReader** 类继承自抽象基类 TextReader，表示阅读器读取一系列字符。
+
+  下表列出了 **StreamReader** 类中一些常用的**方法**：
+
+  | 序号 | 方法 & 描述                                                  |
+  | :--- | :----------------------------------------------------------- |
+  | 1    | **public override void Close()** 关闭 StreamReader 对象和基础流，并释放任何与读者相关的系统资源。 |
+  | 2    | **public override int Peek()** 返回下一个可用的字符，但不使用它。 |
+  | 3    | **public override int Read()** 从输入流中读取下一个字符，并把字符位置往前移一个字符。 |
+
+  ```c#
+  using System;
+  using System.IO;
+  
+  namespace FileApplication
+  {
+      class Program
+      {
+          static void Main(string[] args)
+          {
+              try
+              {
+                  // 创建一个 StreamReader 的实例来读取文件 
+                  // using 语句也能关闭 StreamReader
+                  using (StreamReader sr = new StreamReader("c:/jamaica.txt"))
+                  {
+                      string line;
+                     
+                      // 从文件读取并显示行，直到文件的末尾 
+                      while ((line = sr.ReadLine()) != null)
+                      {
+                          Console.WriteLine(line);
+                      }
+                  }
+              }
+              catch (Exception e)
+              {
+                  // 向用户显示出错消息
+                  Console.WriteLine("The file could not be read:");
+                  Console.WriteLine(e.Message);
+              }
+              Console.ReadKey();
+          }
+      }
+  }
+  ```
+
+- StreamWriter类
+
+  **StreamWriter** 类继承自抽象类 TextWriter，表示编写器写入一系列字符。
+
+  下表列出了 **StreamWriter** 类中一些常用的**方法**：
+
+  | 序号 | 方法 & 描述                                                  |
+  | :--- | :----------------------------------------------------------- |
+  | 1    | **public override void Close()** 关闭当前的 StreamWriter 对象和基础流。 |
+  | 2    | **public override void Flush()** 清理当前编写器的所有缓冲区，使得所有缓冲数据写入基础流。 |
+  | 3    | **public virtual void Write(bool value)** 把一个布尔值的文本表示形式写入到文本字符串或流。（继承自 TextWriter。） |
+  | 4    | **public override void Write( char value )** 把一个字符写入到流。 |
+  | 5    | **public virtual void Write( decimal value )** 把一个十进制值的文本表示形式写入到文本字符串或流。 |
+  | 6    | **public virtual void Write( double value )** 把一个 8 字节浮点值的文本表示形式写入到文本字符串或流。 |
+  | 7    | **public virtual void Write( int value )** 把一个 4 字节有符号整数的文本表示形式写入到文本字符串或流。 |
+  | 8    | **public override void Write( string value )** 把一个字符串写入到流。 |
+  | 9    | **public virtual void WriteLine()** 把行结束符写入到文本字符串或流。 |
+
+  ```c#
+  using System;
+  using System.IO;
+  
+  namespace FileApplication
+  {
+      class Program
+      {
+          static void Main(string[] args)
+          {
+  
+              string[] names = new string[] {"Zara Ali", "Nuha Ali"};
+              using (StreamWriter sw = new StreamWriter("names.txt"))
+              {
+                  foreach (string s in names)
+                  {
+                      sw.WriteLine(s);
+  
+                  }
+              }
+  
+              // 从文件中读取并显示每行
+              string line = "";
+              using (StreamReader sr = new StreamReader("names.txt"))
+              {
+                  while ((line = sr.ReadLine()) != null)
+                  {
+                      Console.WriteLine(line);
+                  }
+              }
+              Console.ReadKey();
+          }
+      }
+  }
+  ```
+
+### 二进制文件的读写
+
+- BinaryReader类
+
+  **BinaryReader** 类用于从文件读取二进制数据。一个 **BinaryReader** 对象通过向它的构造函数传递 **FileStream** 对象而被创建。
+
+  下表列出了 **BinaryReader** 类中一些常用的**方法**：
+
+  | 序号 | 方法 & 描述                                                  |
+  | :--- | :----------------------------------------------------------- |
+  | 1    | **public override void Close()** 关闭 BinaryReader 对象和基础流。 |
+  | 2    | **public virtual int Read()** 从基础流中读取字符，并把流的当前位置往前移。 |
+  | 3    | **public virtual bool ReadBoolean()** 从当前流中读取一个布尔值，并把流的当前位置往前移一个字节。 |
+  | 4    | **public virtual byte ReadByte()** 从当前流中读取下一个字节，并把流的当前位置往前移一个字节。 |
+  | 5    | **public virtual byte[] ReadBytes( int count )** 从当前流中读取指定数目的字节到一个字节数组中，并把流的当前位置往前移指定数目的字节。 |
+  | 6    | **public virtual char ReadChar()** 从当前流中读取下一个字节，并把流的当前位置按照所使用的编码和从流中读取的指定的字符往前移。 |
+  | 7    | **public virtual char[] ReadChars( int count )** 从当前流中读取指定数目的字节，在一个字符数组中返回数组，并把流的当前位置按照所使用的编码和从流中读取的指定的字符往前移。 |
+  | 8    | **public virtual double ReadDouble()** 从当前流中读取一个 8 字节浮点值，并把流的当前位置往前移八个字节。 |
+  | 9    | **public virtual int ReadInt32()** 从当前流中读取一个 4 字节有符号整数，并把流的当前位置往前移四个字节。 |
+  | 10   | **public virtual string ReadString()** 从当前流中读取一个字符串。字符串以长度作为前缀，同时编码为一个七位的整数。 |
+
+- BinaryWriter 类
+
+  **BinaryWriter** 类用于向文件写入二进制数据。一个 **BinaryWriter** 对象通过向它的构造函数传递 **FileStream** 对象而被创建。
+
+  下表列出了 **BinaryWriter** 类中一些常用的**方法**：
+
+  | 序号 | 方法 & 描述                                                  |
+  | :--- | :----------------------------------------------------------- |
+  | 1    | **public override void Close()** 关闭 BinaryWriter 对象和基础流。 |
+  | 2    | **public virtual void Flush()** 清理当前编写器的所有缓冲区，使得所有缓冲数据写入基础设备。 |
+  | 3    | **public virtual long Seek( int offset, SeekOrigin origin )** 设置当前流内的位置。 |
+  | 4    | **public virtual void Write( bool value )** 把一个单字节的布尔值写入到当前流中，0 表示 false，1 表示 true。 |
+  | 5    | **public virtual void Write( byte value )** 把一个无符号字节写入到当前流中，并把流的位置往前移一个字节。 |
+  | 6    | **public virtual void Write( byte[] buffer )** 把一个字节数组写入到基础流中。 |
+  | 7    | **public virtual void Write( char ch )** 把一个 Unicode 字符写入到当前流中，并把流的当前位置按照所使用的编码和要写入到流中的指定的字符往前移。 |
+  | 8    | **public virtual void Write( char[] chars )** 把一个字符数组写入到当前流中，并把流的当前位置按照所使用的编码和要写入到流中的指定的字符往前移。 |
+  | 9    | **public virtual void Write( double value )** 把一个 8 字节浮点值写入到当前流中，并把流位置往前移八个字节。 |
+  | 10   | **public virtual void Write( int value )** 把一个 4 字节有符号整数写入到当前流中，并把流位置往前移四个字节。 |
+  | 11   | **public virtual void Write( string value )** 把一个以长度为前缀的字符串写入到 BinaryWriter 的当前编码的流中，并把流的当前位置按照所使用的编码和要写入到流中的指定的字符往前移。 |
+
+```c#
+using System;
+using System.IO;
+
+namespace BinaryFileApplication
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            BinaryWriter bw;
+            BinaryReader br;
+            int i = 25;
+            double d = 3.14157;
+            bool b = true;
+            string s = "I am happy";
+            // 创建文件
+            try
+            {
+                bw = new BinaryWriter(new FileStream("mydata",
+                                FileMode.Create));
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine(e.Message + "\n Cannot create file.");
+                return;
+            }
+            // 写入文件
+            try
+            {
+                bw.Write(i);
+                bw.Write(d);
+                bw.Write(b);
+                bw.Write(s);
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine(e.Message + "\n Cannot write to file.");
+                return;
+            }
+
+            bw.Close();
+            // 读取文件
+            try
+            {
+                br = new BinaryReader(new FileStream("mydata",
+                                FileMode.Open));
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine(e.Message + "\n Cannot open file.");
+                return;
+            }
+            try
+            {
+                i = br.ReadInt32();
+                Console.WriteLine("Integer data: {0}", i);
+                d = br.ReadDouble();
+                Console.WriteLine("Double data: {0}", d);
+                b = br.ReadBoolean();
+                Console.WriteLine("Boolean data: {0}", b);
+                s = br.ReadString();
+                Console.WriteLine("String data: {0}", s);
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine(e.Message + "\n Cannot read from file.");
+                return;
+            }
+            br.Close();
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+
+
+### Windows 文件系统的操作
+
+使用各种目录和文件相关的类来操作目录和文件，比如 **DirectoryInfo** 类和 **FileInfo** 类。
+
+- DirectoryInfo 类
+
+  | 序号 | 属性 & 描述                                             |
+  | :--- | :------------------------------------------------------ |
+  | 1    | **Attributes** 获取当前文件或目录的属性。               |
+  | 2    | **CreationTime** 获取当前文件或目录的创建时间。         |
+  | 3    | **Exists** 获取一个表示目录是否存在的布尔值。           |
+  | 4    | **Extension** 获取表示文件存在的字符串。                |
+  | 5    | **FullName** 获取目录或文件的完整路径。                 |
+  | 6    | **LastAccessTime** 获取当前文件或目录最后被访问的时间。 |
+  | 7    | **Name** 获取该 DirectoryInfo 实例的名称。              |
+
+  下表列出了 **DirectoryInfo** 类中一些常用的**方法**：
+
+  | 序号 | 方法 & 描述                                                  |
+  | :--- | :----------------------------------------------------------- |
+  | 1    | **public void Create()** 创建一个目录。                      |
+  | 2    | **public DirectoryInfo CreateSubdirectory( string path )** 在指定的路径上创建子目录。指定的路径可以是相对于 DirectoryInfo 类的实例的路径。 |
+  | 3    | **public override void Delete()** 如果为空的，则删除该 DirectoryInfo。 |
+  | 4    | **public DirectoryInfo[] GetDirectories()** 返回当前目录的子目录。 |
+  | 5    | **public FileInfo[] GetFiles()** 从当前目录返回文件列表。    |
+
+- FileInfo 类
+
+  **FileInfo** 类派生自 **FileSystemInfo** 类。它提供了用于创建、复制、删除、移动、打开文件的属性和方法，且有助于 FileStream 对象的创建。该类不能被继承。
+
+  下表列出了 **FileInfo** 类中一些常用的**属性**：
+
+  | 序号 | 属性 & 描述                                       |
+  | :--- | :------------------------------------------------ |
+  | 1    | **Attributes** 获取当前文件的属性。               |
+  | 2    | **CreationTime** 获取当前文件的创建时间。         |
+  | 3    | **Directory** 获取文件所属目录的一个实例。        |
+  | 4    | **Exists** 获取一个表示文件是否存在的布尔值。     |
+  | 5    | **Extension** 获取表示文件存在的字符串。          |
+  | 6    | **FullName** 获取文件的完整路径。                 |
+  | 7    | **LastAccessTime** 获取当前文件最后被访问的时间。 |
+  | 8    | **LastWriteTime** 获取文件最后被写入的时间。      |
+  | 9    | **Length** 获取当前文件的大小，以字节为单位。     |
+  | 10   | **Name** 获取文件的名称。                         |
+
+  下表列出了 **FileInfo** 类中一些常用的**方法**：
+
+  | 序号 | 方法 & 描述                                                  |
+  | :--- | :----------------------------------------------------------- |
+  | 1    | **public StreamWriter AppendText()** 创建一个 StreamWriter，追加文本到由 FileInfo 的实例表示的文件中。 |
+  | 2    | **public FileStream Create()** 创建一个文件。                |
+  | 3    | **public override void Delete()** 永久删除一个文件。         |
+  | 4    | **public void MoveTo( string destFileName )** 移动一个指定的文件到一个新的位置，提供选项来指定新的文件名。 |
+  | 5    | **public FileStream Open( FileMode mode )** 以指定的模式打开一个文件。 |
+  | 6    | **public FileStream Open( FileMode mode, FileAccess access )** 以指定的模式，使用 read、write 或 read/write 访问，来打开一个文件。 |
+  | 7    | **public FileStream Open( FileMode mode, FileAccess access, FileShare share )** 以指定的模式，使用 read、write 或 read/write 访问，以及指定的分享选项，来打开一个文件。 |
+  | 8    | **public FileStream OpenRead()** 创建一个只读的 FileStream。 |
+  | 9    | **public FileStream OpenWrite()** 创建一个只写的 FileStream。 |
+
+```c#
+using System;
+using System.IO;
+
+namespace WindowsFileApplication
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 创建一个 DirectoryInfo 对象
+            DirectoryInfo mydir = new DirectoryInfo(@"c:\Windows");
+
+            // 获取目录中的文件以及它们的名称和大小
+            FileInfo [] f = mydir.GetFiles();
+            foreach (FileInfo file in f)
+            {
+                Console.WriteLine("File Name: {0} Size: {1}",
+                    file.Name, file.Length);
+            }
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+
+
 
 
 
