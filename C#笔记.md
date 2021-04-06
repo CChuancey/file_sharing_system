@@ -300,6 +300,357 @@ C#结构体与C++的不同
 
 ## 类
 
+> - 类的默认访问标识符是 **internal**，成员的默认访问标识符是 **private**。
+> - 构造函数要声明为 **public**，名称与类的名称完全相同，它没有任何返回类型。
+> - 析构函数的名称是在类的名称前加上一个波浪形（~）作为前缀，它不返回值，也不带任何参数。
+> - 静态成员：关键字 **static** 意味着类中只有一个该成员的实例。
+
+### 继承
+
+- 定义
+
+  ```c#
+  <访问修饰符符> class <基类>
+  {
+   ...
+  }
+  class <派生类> : <基类>
+  {
+   ...
+  }
+  ```
+
+- 初始化
+
+  ```c#
+  using System;
+  namespace RectangleApplication
+  {
+     class Rectangle
+     {
+        // 成员变量
+        protected double length;
+        protected double width;
+        public Rectangle(double l, double w)
+        {
+           length = l;
+           width = w;
+        }
+        public double GetArea()
+        {
+           return length * width;
+        }
+        public void Display()
+        {
+           Console.WriteLine("长度： {0}", length);
+           Console.WriteLine("宽度： {0}", width);
+           Console.WriteLine("面积： {0}", GetArea());
+        }
+     }//end class Rectangle  
+     class Tabletop : Rectangle
+     {
+        private double cost;
+        public Tabletop(double l, double w) : base(l, w)
+        { }
+        public double GetCost()
+        {
+           double cost;
+           cost = GetArea() * 70;
+           return cost;
+        }
+        public void Display()
+        {
+           base.Display();
+           Console.WriteLine("成本： {0}", GetCost());
+        }
+     }
+     class ExecuteRectangle
+     {
+        static void Main(string[] args)
+        {
+           Tabletop t = new Tabletop(4.5, 7.5);
+           t.Display();
+           Console.ReadLine();
+        }
+     }
+  }
+  ```
+
+- 多重继承
+
+  与Java类似，C#不支持多重继承，但可以同时实现多个接口
+
+### 多态
+
+多态性可以是静态的或动态的。在**静态多态性**中，函数的响应是在编译时发生的。在**动态多态性**中，函数的响应是在运行时发生的。
+
+在 C# 中，每个类型都是多态的，因为包括用户定义类型在内的所有类型都继承自 Object。
+
+#### 静态多态性
+
+- 函数重载
+
+- 运算符重载
+
+  ```c#
+  public static Box operator+ (Box b, Box c)
+  {
+     Box box = new Box();
+     box.length = b.length + c.length;
+     box.breadth = b.breadth + c.breadth;
+     box.height = b.height + c.height;
+     return box;
+  }
+  ```
+
+  
+
+#### 动态多态性
+
+- C# 允许您使用关键字 **abstract** 创建抽象类，用于提供接口的部分类的实现。当一个派生类继承自该抽象类时，实现即完成。**抽象类**包含抽象方法，抽象方法可被派生类实现。派生类具有更专业的功能。
+
+- 通过在类定义前面放置关键字 **sealed**，可以将类声明为**密封类**。当一个类被声明为 **sealed** 时，它不能被继承。**抽象类不能被声明为 sealed。**
+
+```c#
+using System;
+namespace PolymorphismApplication
+{
+   abstract class Shape
+   {
+       abstract public int area();
+   }
+   class Rectangle:  Shape
+   {
+      private int length;
+      private int width;
+      public Rectangle( int a=0, int b=0)
+      {
+         length = a;
+         width = b;
+      }
+      public override int area ()
+      {
+         Console.WriteLine("Rectangle 类的面积：");
+         return (width * length);
+      }
+   }
+
+   class RectangleTester
+   {
+      static void Main(string[] args)
+      {
+         Rectangle r = new Rectangle(10, 7);
+         double a = r.area();
+         Console.WriteLine("面积： {0}",a);
+         Console.ReadKey();
+      }
+   }
+}
+```
+
+---
+
+虚方法：
+
+当有一个定义在类中的函数需要在继承类中实现时，可以使用**虚方法**。
+
+虚方法可以在不同的继承类中有不同的实现。
+
+对虚方法的调用是在运行时发生的。
+
+动态多态性是通过 **抽象类** 和 **虚方法** 实现的。
+
+```c#
+using System;
+using System.Collections.Generic;
+
+public class Shape
+{
+    public int X { get; private set; }
+    public int Y { get; private set; }
+    public int Height { get; set; }
+    public int Width { get; set; }
+   
+    // 虚方法
+    public virtual void Draw()
+    {
+        Console.WriteLine("执行基类的画图任务");
+    }
+}
+
+class Circle : Shape
+{
+    public override void Draw()
+    {
+        Console.WriteLine("画一个圆形");
+        base.Draw();
+    }
+}
+class Rectangle : Shape
+{
+    public override void Draw()
+    {
+        Console.WriteLine("画一个长方形");
+        base.Draw();
+    }
+}
+class Triangle : Shape
+{
+    public override void Draw()
+    {
+        Console.WriteLine("画一个三角形");
+        base.Draw();
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        // 创建一个 List<Shape> 对象，并向该对象添加 Circle、Triangle 和 Rectangle
+        var shapes = new List<Shape>
+        {
+            new Rectangle(),
+            new Triangle(),
+            new Circle()
+        };
+
+        // 使用 foreach 循环对该列表的派生类进行循环访问，并对其中的每个 Shape 对象调用 Draw 方法
+        foreach (var shape in shapes)
+        {
+            shape.Draw();
+        }
+
+        Console.WriteLine("按下任意键退出。");
+        Console.ReadKey();
+    }
+
+}
+```
+
+### 接口
+
+> 抽象类在某种程度上与接口类似，但是，它们大多只是用在当只有少数方法由基类声明由派生类实现时。
+>
+> 接口使得实现接口的类或结构在形式上保持一致。
+
+- 接口的定义
+
+  ```c#
+  interface IMyInterface // 默认为public，通常接口命令以 I 字母开头
+  {
+      void MethodToImplement();
+  }
+  ```
+
+- 接口的继承
+
+  如果一个接口继承其他接口，那么实现类或结构就需要实现所有接口的成员。
+
+
+
+# 4、特性
+
+## 命名空间
+
+- 定义命名空间
+
+  ```c#
+  namespace namespace_name
+  {
+     // 代码声明
+  }
+  
+  // 命名空间内函数变量的使用
+  namespace_name.item_name;
+  ```
+
+- using关键字
+
+  **using** 关键字表明程序使用的是给定命名空间中的名称。例如，我们在程序中使用 **System** 命名空间，其中定义了类 Console。我们可以只写：
+
+  ```c#
+  Console.WriteLine ("Hello there");
+  //我们可以写完全限定名称，如下：
+  System.Console.WriteLine("Hello there");
+  ```
+
+- 嵌套命名空间
+
+  ```c#
+  namespace namespace_name1 
+  {
+     // 代码声明
+     namespace namespace_name2 
+     {
+       // 代码声明
+     }
+  }
+  ```
+
+## 预处理指令
+
+> 所有的预处理器指令都是以 # 开始。且在一行上，只有空白字符可以出现在预处理器指令之前。预处理器指令不是语句，所以它们不以分号（;）结束。
+>
+> C# 编译器没有一个单独的预处理器，但是，指令被处理时就像是有一个单独的预处理器一样。在 C# 中，预处理器指令用于在条件编译中起作用。与 C 和 C++ 不同的是，它们不是用来创建宏。一个预处理器指令必须是该行上的唯一指令。
+
+- 预处理指令列表
+
+  | 预处理器指令 | 描述                                                         |
+  | :----------- | :----------------------------------------------------------- |
+  | #define      | 它用于定义一系列成为符号的字符。                             |
+  | #undef       | 它用于取消定义符号。                                         |
+  | #if          | 它用于测试符号是否为真。                                     |
+  | #else        | 它用于创建复合条件指令，与 #if 一起使用。                    |
+  | #elif        | 它用于创建复合条件指令。                                     |
+  | #endif       | 指定一个条件指令的结束。                                     |
+  | #line        | 它可以让您修改编译器的行数以及（可选地）输出错误和警告的文件名。 |
+  | #error       | 它允许从代码的指定位置生成一个错误。                         |
+  | #warning     | 它允许从代码的指定位置生成一级警告。                         |
+  | #region      | 它可以让您在使用 Visual Studio Code Editor 的大纲特性时，指定一个可展开或折叠的代码块。 |
+  | #endregion   | 它标识着 #region 块的结束。                                  |
+
+- #define 预处理器
+
+  \#define 预处理器指令创建符号常量。
+
+  \#define 允许您定义一个符号，这样，通过使用符号作为传递给 #if 指令的表达式，表达式将返回 true。它的语法如下：
+
+  ```c#
+  #define symbol
+  ```
+
+- 条件指令
+
+  ```c#
+  #define DEBUG
+  #define VC_V10
+  using System;
+  public class TestClass
+  {
+     public static void Main()
+     {
+  
+        #if (DEBUG && !VC_V10)
+           Console.WriteLine("DEBUG is defined");
+        #elif (!DEBUG && VC_V10)
+           Console.WriteLine("VC_V10 is defined");
+        #elif (DEBUG && VC_V10)
+           Console.WriteLine("DEBUG and VC_V10 are defined");
+        #else
+           Console.WriteLine("DEBUG and VC_V10 are not defined");
+        #endif
+        Console.ReadKey();
+     }
+  }
+  
+  // 输出结果
+  DEBUG and VC_V10 are defined
+  ```
+
+
+
+## 正则表达式
 
 
 
@@ -307,12 +658,158 @@ C#结构体与C++的不同
 
 
 
+## 异常处理
 
+异常是在程序执行期间出现的问题。C# 中的异常是对程序运行时出现的特殊情况的一种响应，比如尝试除以零。
 
+异常提供了一种把程序控制权从某个部分转移到另一个部分的方式。C# 异常处理时建立在四个关键词之上的：**try**、**catch**、**finally** 和 **throw**。
 
+- **try**：一个 try 块标识了一个将被激活的特定的异常的代码块。后跟一个或多个 catch 块。
+- **catch**：程序通过异常处理程序捕获异常。catch 关键字表示异常的捕获。
+- **finally**：finally 块用于执行给定的语句，不管异常是否被抛出都会执行。例如，如果您打开一个文件，不管是否出现异常文件都要被关闭。
+- **throw**：当问题出现时，程序抛出一个异常。使用 throw 关键字来完成。
 
+```c#
+try
+{
+   // 引起异常的语句
+}
+catch( ExceptionName e1 )
+{
+   // 错误处理代码
+}
+catch( ExceptionName e2 )
+{
+   // 错误处理代码
+}
+catch( ExceptionName eN )
+{
+   // 错误处理代码
+}
+finally
+{
+   // 要执行的语句
+}
+```
 
+- C#中异常类
 
+  C# 中的异常类主要是直接或间接地派生于 **System.Exception** 类。**System.ApplicationException** 和 **System.SystemException** 类是派生于 System.Exception 类的异常类。
+
+  - **System.ApplicationException** 类支持由应用程序生成的异常。所以程序员定义的异常都应派生自该类。
+  - **System.SystemException** 类是所有预定义的系统异常的基类。
+
+  | 异常类                            | 描述                                           |
+  | :-------------------------------- | :--------------------------------------------- |
+  | System.IO.IOException             | 处理 I/O 错误。                                |
+  | System.IndexOutOfRangeException   | 处理当方法指向超出范围的数组索引时生成的错误。 |
+  | System.ArrayTypeMismatchException | 处理当数组类型不匹配时生成的错误。             |
+  | System.NullReferenceException     | 处理当依从一个空对象时生成的错误。             |
+  | System.DivideByZeroException      | 处理当除以零时生成的错误。                     |
+  | System.InvalidCastException       | 处理在类型转换期间生成的错误。                 |
+  | System.OutOfMemoryException       | 处理空闲内存不足生成的错误。                   |
+  | System.StackOverflowException     | 处理栈溢出生成的错误。                         |
+
+- 异常处理
+
+  ```c#
+  using System;
+  namespace ErrorHandlingApplication
+  {
+      class DivNumbers
+      {
+          int result;
+          DivNumbers()
+          {
+              result = 0;
+          }
+          public void division(int num1, int num2)
+          {
+              try
+              {
+                  result = num1 / num2;
+              }
+              catch (DivideByZeroException e)
+              {
+                  Console.WriteLine("Exception caught: {0}", e);
+              }
+              finally
+              {
+                  Console.WriteLine("Result: {0}", result);
+              }
+  
+          }
+          static void Main(string[] args)
+          {
+              DivNumbers d = new DivNumbers();
+              d.division(25, 0);
+              Console.ReadKey();
+          }
+      }
+  }
+  ```
+
+- 创建用户自定义异常
+
+  ```c#
+  using System;
+  namespace UserDefinedException
+  {
+     class TestTemperature
+     {
+        static void Main(string[] args)
+        {
+           Temperature temp = new Temperature();
+           try
+           {
+              temp.showTemp();
+           }
+           catch(TempIsZeroException e)
+           {
+              Console.WriteLine("TempIsZeroException: {0}", e.Message);
+           }
+           Console.ReadKey();
+        }
+     }
+  }
+  public class TempIsZeroException: ApplicationException
+  {
+     public TempIsZeroException(string message): base(message) //base和this的用法
+     {
+     }
+  }
+  public class Temperature
+  {
+     int temperature = 0;
+     public void showTemp()
+     {
+        if(temperature == 0)
+        {
+           throw (new TempIsZeroException("Zero Temperature found"));
+        }
+        else
+        {
+           Console.WriteLine("Temperature: {0}", temperature);
+        }
+     }
+  }
+  ```
+
+- 抛出对象
+
+  如果异常是直接或间接派生自 **System.Exception** 类，您可以抛出一个对象。您可以在 catch 块中使用 throw 语句来抛出当前的对象，如下所示：
+
+  ```c#
+  Catch(Exception e)
+  {
+     ...
+     Throw e
+  }
+  ```
+
+  
+
+# 5、IO
 
 
 
