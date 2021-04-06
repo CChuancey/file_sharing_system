@@ -26,7 +26,32 @@
 
 > 与 Java 不同的是，文件名可以不同于类的名称。
 
+## 注释
 
+三个`///`可以产生一个摘要
+
+```c#
+/// <summary>
+/// 说明
+/// </summary>
+/// <param name="args">参数说明</param>
+```
+
+## VS常用快捷键
+
+CTRL+K+D 快速对齐代码
+
+Ctrl+J 快速弹出智能提示
+
+**折叠冗余代码：#Region 和 #endregion** region后面可以不加注释符直接加注释
+
+选中代码 Shift+HOME 、Shift+End
+
+
+
+## 换行符
+
+在Windows中读写**文件**，换行符是`\r\n`
 
 
 
@@ -117,6 +142,8 @@ using System;
 
 ## C# 类型转换方法
 
+采用Convert类进行类型转换：
+
 | 序号 | 方法 & 描述                                                  |
 | :--- | :----------------------------------------------------------- |
 | 1    | **ToBoolean** 如果可能的话，把类型转换为布尔型。             |
@@ -136,12 +163,19 @@ using System;
 | 15   | **ToUInt32** 把类型转换为 32 位无符号整数类型。              |
 | 16   | **ToUInt64** 把类型转换为 64 位无符号整数类型。              |
 
-> 接受来自用户的值
->
+```c#
+string s = "1123";
+double x = Convert.ToDouble(s); //注意异常
+```
+
+
+
+接受来自用户的值
+
 > **System** 命名空间中的 **Console** 类提供了一个函数 **ReadLine()**，用于接收来自用户的输入，并把它存储到一个变量中。
 >
 > ```c#
-> int num;
+>int num;
 > num = Convert.ToInt32(Console.ReadLine());
 > ```
 
@@ -154,6 +188,66 @@ using System;
 | typeof() | 返回 class 的类型。                    | typeof(StreamReader);                                        |
 | is       | 判断对象是否为某一类型。               | If( Ford is Car) // 检查 Ford 是否是 Car 类的一个对象。      |
 | as       | 强制转换，即使转换失败也不会抛出异常。 | Object obj = new StringReader("Hello"); StringReader r = obj as StringReader; |
+
+
+
+## 接受用户的输入
+
+```c#
+string s = Console.ReadLine(); //用字符串接受用户的输入
+```
+
+
+
+## `@`符号
+
+1. 取消`\`在字符串中的转义作用
+2. 将字符串按原格式输出
+
+## 复制数据类型
+
+### 常量
+
+```c#
+const int x = 0x7fffffff;
+```
+
+### 枚举
+
+> 用来规范开发过程
+>
+> 枚举类型默认可以跟int相互转换
+>
+> 所有的类型都能和string类型相互转换，使用ToString()
+
+```c#
+namespace ConsoleApp3
+{
+
+    enum Sex
+    {
+        a = 6,b 
+    }
+    class Program
+    {
+
+        static void Main(string[] args)
+        {
+            Sex me = Sex.a; 
+            Console.WriteLine(me);
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+使用Parse实现其他类型向enum类型的转换
+
+```c#
+ string x = "5";
+Sex test;
+Enum.Parse(typeof(Sex), x);// 需要用到typeof获得枚举类型，反射！！！！！！！！！！
+```
 
 
 
