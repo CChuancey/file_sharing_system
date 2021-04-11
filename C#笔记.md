@@ -432,6 +432,126 @@ C#结构体与C++的不同
 > - 析构函数的名称是在类的名称前加上一个波浪形（~）作为前缀，它不返回值，也不带任何参数。
 > - 静态成员：关键字 **static** 意味着类中只有一个该成员的实例。
 
+### 属性和字段
+
+属性的作用就是保护字段、对字段的赋值和取值进行预定
+
+属性的本质就是两个方法 get和set
+
+```c#
+// vs快捷键生成： 光标放在字段变量名上，Ctrl+R，放开R，按e，自动生成
+class Person
+{
+    private string _name;
+    private string _age;
+    private string _sex;
+
+    public string Name
+    {
+        get { return _name; } //也可以对返回值进行限定
+        set {
+            if (value.Length==0)
+            {
+                value = "未定义";
+            }
+            this._name = value; 
+        }
+    }
+}
+```
+
+### 构造函数
+
+注意this的用法
+
+```c#
+class Program
+{
+    class Person
+    {
+        private string _name;
+        private string _age;
+        private string _sex;
+
+        public string Age { get => _age; set => _age = value; }
+        public string Name { get => _name; set => _name = value; }
+        public string Sex { get => _sex; set => _sex = value; }
+
+        public Person()
+        {
+
+        }
+
+        public Person(string name)
+        {
+            this.Name = name;
+        }
+
+        public Person(string name,string sex):this(name)
+        {
+            this.Sex = sex;
+        }
+        public Person(string name,string sex,string age):this(name,sex)
+        {
+            this.Age = age;
+        }
+    }
+```
+
+对于继承的类，子类会自动调用父类的 **无参构造函数**,但是 如果父类中有有参的构造函数，那无参构造函数会被干掉。
+
+解决方法：
+
+- 在父类中显式的声明无参构造函数
+- 子类中用`base`关键字显式的调用父类的构造函数
+
+```c#
+class Person
+{
+    private string _name;
+    private string _age;
+    private string _sex;
+
+    public string Age { get => _age; set => _age = value; }
+    public string Name { get => _name; set => _name = value; }
+    public string Sex { get => _sex; set => _sex = value; }
+
+    public Person()
+    {
+
+    }
+
+    public Person(string name)
+    {
+        this.Name = name;
+    }
+
+    public Person(string name,string sex):this(name)
+    {
+        this.Sex = sex;
+    }
+    public Person(string name,string sex,string age):this(name,sex)
+    {
+        this.Age = age;
+    }
+}
+
+class Student:Person
+{
+    public Student()
+    {
+
+    }
+    public Student(string name, string age, string sex) :
+        base(name, age, sex) //base调用父类的构造函数
+    {
+
+     }
+}
+```
+
+
+
 ### 继承
 
 - 定义
@@ -506,6 +626,8 @@ C#结构体与C++的不同
 - 多重继承
 
   与Java类似，C#不支持多重继承，但可以同时实现多个接口
+
+
 
 ### 多态
 
@@ -673,6 +795,8 @@ class Program
 - 接口的继承
 
   如果一个接口继承其他接口，那么实现类或结构就需要实现所有接口的成员。
+
+### 里氏转换
 
 
 
