@@ -47,7 +47,7 @@ Ctrl+J 快速弹出智能提示
 
 选中代码 Shift+HOME 、Shift+End
 
-
+Alt+Shift+F10 导入所需要的命名空间
 
 ## 换行符
 
@@ -797,6 +797,165 @@ class Program
   如果一个接口继承其他接口，那么实现类或结构就需要实现所有接口的成员。
 
 ### 里氏转换
+
+1. 子类可以赋值给父类：如果有一个地方需要父类作为参数，可以传一个子类对象
+2. 如果父类中装的是子类对象，那么可以将这个父类转换为子类对象（本身是子类对象，被父类引用，可以再转回用子类引用）
+
+
+
+### 几个关键字
+
+1. new：还可用于父子类中的成员重名时，两者成员加上new修饰，可以隐藏父类的成员
+2. is：表示类型转换，判断能否转换，返回值为bool类型
+3. as：表示类型转换，如果能转换则返回对应的对象，否则返回null
+
+
+
+## ArryaList 类
+
+> 集合的对象；长度可变，类型不固定
+
+count属性表示集合中实际包含的元素的个数
+
+capacity：表示集合中可以包含的元素的个数；随之集合中的元素个数变大而变大
+
+## HashTable
+
+两个属性
+
+- 键的集合：obj.Keys
+- 值的集合：obj.Values
+
+
+
+> arraylist与hashtable由于操作类型为object，每次操作都需要拆箱和装箱，浪费时间！！！！
+
+## 泛型集合
+
+```c#
+List<int> vs = new List<int>(); //list
+
+Dictionary<int, string> keyValuePairs = new Dictionary<int, string>(); //dictionary
+//字典的便利方式
+//方式一
+foreach (KeyValuePair<int,string> kvp in keyValuePairs)
+{
+    Console.WriteLine(kvp.Key);
+    Console.WriteLine(kvp.Value);
+}
+
+//方式二
+foreach (int index in keyValuePairs.Keys)
+{
+    Console.WriteLine(keyValuePairs[index]);
+}
+```
+
+
+
+## 文件类
+
+### Path
+
+```c#
+//专门用来操作路径的工具类
+string url = @"C:\Program Files\Application Verifier\1.mp3";
+Console.WriteLine(Path.GetFileName(url)); //从url得到文件名
+Console.WriteLine(Path.GetDirectoryName(url));
+Console.WriteLine(Path.GetFileNameWithoutExtension(url));
+Console.WriteLine(Path.GetExtension(url));
+```
+
+### File
+
+```c#
+/**************************   操作文本文件 **************************************/
+
+// 专门用来操作文件的工具类
+string url = @"C:\Users\Administrator\Desktop\jdk api 1.8中文\1.mp3";
+File.Create(url);
+
+//  文件编码-------------------------------
+// 读
+string url = @"C:\Users\Administrator\Desktop\1.txt";
+byte[] data = File.ReadAllBytes(url); //先读成字节数组
+string res = Encoding.UTF8.GetString(data); //编码解析的类：Encoding || 此时getstring为解码，而getbytes为编码，在writebytes的时候就需要先把字符串转成字节数组（getbytes）
+Console.WriteLine(res);
+
+//写
+string newData = "新加的数据";
+byte[] output = Encoding.UTF8.GetBytes(newData);
+File.WriteAllBytes(url,output); //写入的是字节数组，写入时会先截断文件
+Console.ReadKey();
+
+// 直接指定编码格式读取，只能读文本文件
+string[] lines = File.ReadAllLines(url,Encoding.UTF8);
+foreach (var line in lines)
+{
+    Console.WriteLine(line);
+}
+
+string[] lines = new string[] { "新写入的第一行", "新写入的第二行" };
+File.WriteAllLines(url, lines); //对应的写
+
+// 直接读取文本文件的所有内容
+string text = File.ReadAllText(url,Encoding.UTF8);
+Console.WriteLine(text);
+
+string text = "新输入的数据";
+File.WriteAllText(url, text); //对应的写入
+
+
+// 以上的写入方式均会截断该文件，可以采用追加的方式写入
+File.AppendAllText(url, "hahahah");
+```
+
+### 文件流 FileStream
+
+> 两大类
+>
+> - FileStream ：用来操作字节
+> - StreamReader和StreamWriter：用来操作字符
+>
+> **记得关闭流，释放资源！！！！！**
+>
+> 也可以将撞见文件流对象的过程写在using中，会自动的释放资源
+
+- FileStream
+
+  ```c#
+  
+  string url = @"C:\Users\Administrator\Desktop\111.txt";
+  FileStream fileStream = new FileStream(url,FileMode.OpenOrCreate,FileAccess.ReadWrite);
+  byte[] buffer = new byte[1024 * 1024 * 5];
+  
+  int r = fileStream.Read(buffer, 0, buffer.Length);
+  //string s = Encoding.UTF8.GetString(buffer); //不加修改的直接编码为utf8 会很慢！！ 有5G的缓存
+  string s = Encoding.UTF8.GetString(buffer,0,r); //只解码实际的文件大小
+  Console.WriteLine(s);
+  
+  fileStream.Close(); //关闭流
+  fileStream.Dispose();//释放流所占用的资源
+  
+  
+  
+  /*******************************************************************************/
+  //另一种写法
+  string url = @"C:\Users\Administrator\Desktop\111.txt";
+              
+  using (FileStream fileStream = new FileStream(url, FileMode.OpenOrCreate, FileAccess.ReadWrite))
+  {
+      byte[] buffer = new byte[1024 * 1024 * 5];
+  
+      int r = fileStream.Read(buffer, 0, buffer.Length);
+      string s = Encoding.UTF8.GetString(buffer, 0, r);
+      Console.WriteLine(s);
+  }
+  ```
+
+  
+
+
 
 
 
