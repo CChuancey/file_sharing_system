@@ -953,6 +953,26 @@ File.AppendAllText(url, "hahahah");
   }
   ```
 
+-  streamreader和streamwriter
+
+  ```c#
+  string url = @"C:\Users\Administrator\Desktop\111.txt";
+  
+  using (StreamReader stream = new StreamReader(url, Encoding.UTF8))
+  {
+      while (!stream.EndOfStream)
+      {
+          Console.WriteLine(stream.ReadLine());
+      }
+  }
+  
+  using (StreamWriter streamWriter = new StreamWriter(url,true))
+  {
+      string newMsg = "1234565";
+      streamWriter.WriteLine(newMsg);
+  }
+  ```
+
   
 
 
