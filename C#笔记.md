@@ -286,7 +286,15 @@ ref参数要求在方法外必须为其赋值，方法内可以不赋值
 
 # 3、面向对象编程
 
-## 封装
+## 访问修饰符
+
+能修饰类的只有public和internal，默认的是internal，只能在当前项目内访问
+
+在同一个项目中，public和internal的权限是一样的
+
+子类的访问权限不能高于父类的访问权限，会暴露父类的成员
+
+
 
 - public:任何公有成员可以被外部的类访问。
 - private:只有同一个类中的函数可以访问它的私有成员。
@@ -635,81 +643,21 @@ class Student:Person
 
 在 C# 中，每个类型都是多态的，因为包括用户定义类型在内的所有类型都继承自 Object。
 
-#### 静态多态性
+> 实现多态的三种手段
+>
+> 1. 虚方法
+> 2. 抽象类
+> 3. 接口
+>
+> 如果父类中的方法有默认的实现，并且父类需要实例化，考虑虚方法
+>
+> 如果父类中的方法没有默认的实现，父类也不需要被实例化，可以将该类定义为抽象类
 
-- 函数重载
-
-- 运算符重载
-
-  ```c#
-  public static Box operator+ (Box b, Box c)
-  {
-     Box box = new Box();
-     box.length = b.length + c.length;
-     box.breadth = b.breadth + c.breadth;
-     box.height = b.height + c.height;
-     return box;
-  }
-  ```
-
-  
-
-#### 动态多态性
-
-- C# 允许您使用关键字 **abstract** 创建抽象类，用于提供接口的部分类的实现。当一个派生类继承自该抽象类时，实现即完成。**抽象类**包含抽象方法，抽象方法可被派生类实现。派生类具有更专业的功能。
-
-- 通过在类定义前面放置关键字 **sealed**，可以将类声明为**密封类**。当一个类被声明为 **sealed** 时，它不能被继承。**抽象类不能被声明为 sealed。**
+#### 虚方法
 
 ```c#
-using System;
-namespace PolymorphismApplication
-{
-   abstract class Shape
-   {
-       abstract public int area();
-   }
-   class Rectangle:  Shape
-   {
-      private int length;
-      private int width;
-      public Rectangle( int a=0, int b=0)
-      {
-         length = a;
-         width = b;
-      }
-      public override int area ()
-      {
-         Console.WriteLine("Rectangle 类的面积：");
-         return (width * length);
-      }
-   }
-
-   class RectangleTester
-   {
-      static void Main(string[] args)
-      {
-         Rectangle r = new Rectangle(10, 7);
-         double a = r.area();
-         Console.WriteLine("面积： {0}",a);
-         Console.ReadKey();
-      }
-   }
-}
-```
-
----
-
-虚方法：
-
-当有一个定义在类中的函数需要在继承类中实现时，可以使用**虚方法**。
-
-虚方法可以在不同的继承类中有不同的实现。
-
-对虚方法的调用是在运行时发生的。
-
-动态多态性是通过 **抽象类** 和 **虚方法** 实现的。
-
-```c#
+// 父类方法前加vitural，子类方法前加override
+// 否则，用父类引用子类对象时，父类函数会被隐藏，实际调用的还是父类的函数
 using System;
 using System.Collections.Generic;
 
@@ -776,6 +724,74 @@ class Program
 
 }
 ```
+
+
+
+#### 静态多态性
+
+- 函数重载
+
+- 运算符重载
+
+  ```c#
+  public static Box operator+ (Box b, Box c)
+  {
+     Box box = new Box();
+     box.length = b.length + c.length;
+     box.breadth = b.breadth + c.breadth;
+     box.height = b.height + c.height;
+     return box;
+  }
+  ```
+
+  
+
+#### 动态多态性
+
+- C# 允许您使用关键字 **abstract** 创建抽象类，用于提供接口的部分类的实现。当一个派生类继承自该抽象类时，实现即完成。**抽象类**包含抽象方法，抽象方法可被派生类实现。派生类具有更专业的功能。
+
+- 通过在类定义前面放置关键字 **sealed**，可以将类声明为**密封类**。当一个类被声明为 **sealed** 时，它不能被继承。**抽象类不能被声明为 sealed。**
+
+```c#
+using System;
+namespace PolymorphismApplication
+{
+   abstract class Shape
+   {
+       abstract public int area();
+   }
+   class Rectangle:  Shape
+   {
+      private int length;
+      private int width;
+      public Rectangle( int a=0, int b=0)
+      {
+         length = a;
+         width = b;
+      }
+      public override int area ()
+      {
+         Console.WriteLine("Rectangle 类的面积：");
+         return (width * length);
+      }
+   }
+
+   class RectangleTester
+   {
+      static void Main(string[] args)
+      {
+         Rectangle r = new Rectangle(10, 7);
+         double a = r.area();
+         Console.WriteLine("面积： {0}",a);
+         Console.ReadKey();
+      }
+   }
+}
+```
+
+
+
+
 
 ### 接口
 
@@ -1237,7 +1253,38 @@ finally
   }
   ```
 
-  
+
+
+
+## 序列化和反序列化
+
+> 用于传输数据
+
+- 序列化：将对象转换为二进制
+- 反序列化：将二进制转换为对象
+
+```c#
+string url = @"C:\Users\Administrator\Desktop\111.txt";
+
+using (FileStream streamWriter = new FileStream(url,FileMode.OpenOrCreate,FileAccess.ReadWrite))
+{
+    BinaryFormatter binaryFormatter = new BinaryFormatter();
+    binaryFormatter.Serialize(streamWriter, new Test());
+}
+
+Console.WriteLine("序列化成功！");
+
+using (FileStream streamReader = new FileStream(url, FileMode.Open))
+{
+    BinaryFormatter binaryReader = new BinaryFormatter();
+    Test t = (Test)(binaryReader.Deserialize(streamReader));
+    t.func();
+}
+```
+
+
+
+
 
 # 5、IO
 
