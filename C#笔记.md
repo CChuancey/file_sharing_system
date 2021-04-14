@@ -1012,6 +1012,26 @@ File.AppendAllText(url, "hahahah");
   ```
 
   
+  
+  ## md5 加密
+  
+  ```c#
+  string msg = "jiamide shujv 123";
+  MD5 md5 = MD5.Create();
+  byte[] buffer = Encoding.UTF8.GetBytes(msg);
+  try
+  {
+      byte[] encrypted = md5.ComputeHash(buffer);
+      Console.WriteLine(Encoding.UTF8.GetString(encrypted));
+  }
+  catch (Exception e)
+  {
+  
+  
+  }
+  ```
+  
+  
 
 
 
@@ -1675,9 +1695,67 @@ namespace WindowsFileApplication
 
 
 
+# 6、winform
+
+> 1. winform应用程序是一种智能客户端技术，可以使用winform获得信息和传输信息
+>
+>    
+
+## 控件的属性
+
+- name：在后台要获得前台的控件对象，需要使用Name属性
+- visible：指示一个控件是否可见
+- enable：指示一个控件是否可用
 
 
 
+## 事件
+
+- 注册事件F4
+- 触发事件
+
+click事件
+
+load事件
+
+
+
+textbox控件：
+
+wordrap：指示文本框是否换行
+
+passwordchar：让文本框显式一个单一的字符
+
+scollbars：是否显式滚动条
+
+
+
+获得焦点:对象.focus();
+
+
+
+单选和多选框
+
+checked：指示这个控件是否处于可选状态
+
+默认情况下，在一个窗体中，所有的单选按钮只允许选中一个，可以使用分组容器
+
+
+
+MDI窗体设计
+
+1. 确定一个父窗体。将IsMdiContainer设置为true
+2. 创建子窗体，并且设置父窗体（通过属性MidParent）
+
+
+
+
+
+
+
+
+
+# 7、多线程
 
 
 
