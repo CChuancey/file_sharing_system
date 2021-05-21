@@ -1468,7 +1468,9 @@ ip ad sh
 
 
 
+vim的插件管理器：Vundle
 
+再Vundle的管理下可以安装自动补全工具youcompleteme
 
 
 
