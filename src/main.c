@@ -34,6 +34,9 @@ void init_arguments(int* argc,char*** argv){
             thread_num = atoi(optarg);
             printf("the thread pool is using %d threads to handle events!\n",thread_num);
             break;
+        default:
+            fprintf(stderr,"Invalid input,\nPlease type -h to get help message.\n");
+            exit(EXIT_FAILURE);
         }
     }
 }
