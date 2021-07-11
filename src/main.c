@@ -5,12 +5,18 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
+#include <syslog.h>
+#include <assert.h>
+#include "epoll.h"
+#include "thread_pool.h"
 
 #define exitErr(func) {perror(func);exit(EXIT_FAILURE);}
 #define LOCK_FILE_PATH "webserver.pid"
+#define EVENTS_MAX_NUM 500
 
 int exit_flag = 0;
 int thread_num = 0;
+int connfd = -1;
 
 void show_help_msg(){
     printf("this is help msg!\n");
@@ -85,10 +91,34 @@ int main(int argc,char** argv) {
             exit(EXIT_SUCCESS);
         } else exit(EXIT_SUCCESS);       
     }else{
+        if(pid>0) {
+            fprintf(stderr,"webServer is already running!\n");
+            exit(EXIT_FAILURE);
+        }
         add_lock(lock_fd,F_WRLCK,0,SEEK_SET,0);
     }
 
-    while(1) pause();
+
+    openlog("webServer",LOG_NDELAY|LOG_PID,LOG_DAEMON);
+    syslog(LOG_INFO,"webServer started successfully!\n");
+
+    connfd = init_server_socket(12346,500);
+    //connfd 要设置成非阻塞的,并放进监听池中
+    int epfd = epoll_create(1);
+    assert(epfd!=-1);
+    addfd(epfd,connfd,1);
+
+    struct epoll_event ready_events[EVENTS_MAX_NUM];
+
+    pool_init(8); //初始化线程池
+    puts("thread pool created!");
+    while(1) {
+        int nums = epoll_wait(epfd,ready_events,EVENTS_MAX_NUM,-1);
+        assert(nums!=-1);
+        et(epfd,connfd,nums,ready_events); //发现请求后放进线程池
+    }
+    pool_destory();
+    closelog();
     return 0;
 }
 
