@@ -96,26 +96,3 @@ void* thread_routine(void* arg){
     pthread_exit(NULL); //实际无法执行
 }
 
-
-void* func(void* s){
-    printf("threadid is 0x%lx, working on task %d\n",pthread_self(),*(int *)s);
-    sleep(1);
-    return NULL;
-}
-/*
-int main()
-{
-    pool_init(3);
-
-    int* workingnum = (int*)malloc(sizeof(int)*10);
-    for(int i=0;i<10;i++){
-        workingnum[i]=i;
-        pool_add_worker(func,&workingnum[i]);
-    }
-    sleep(5);
-    pool_destory();
-    free(workingnum);
-
-    return 0;
-}
-*/

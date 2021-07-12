@@ -9,6 +9,7 @@
 #include <assert.h>
 #include "epoll.h"
 #include "thread_pool.h"
+#include "http_request.h"
 
 #define exitErr(func) {perror(func);exit(EXIT_FAILURE);}
 #define LOCK_FILE_PATH "webserver.pid"
@@ -106,7 +107,10 @@ int main(int argc,char** argv) {
     //connfd 要设置成非阻塞的,并放进监听池中
     int epfd = epoll_create(1);
     assert(epfd!=-1);
-    addfd(epfd,connfd,1);
+
+    http_request_t* request = (http_request_t* )malloc(sizeof(http_request_t));
+    init_http_request(connfd,epfd,request);
+    addfd(epfd,request,1);
 
     struct epoll_event ready_events[EVENTS_MAX_NUM];
 
