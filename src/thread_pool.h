@@ -9,7 +9,7 @@
 
 //任务链表
 typedef struct Worker{
-    void* (*process)(void* arg);
+    void (*process)(void* arg);
     void* arg;
     struct Worker* next;
 }CThread_worker;
@@ -26,7 +26,7 @@ typedef struct{
 }CThread_pool;
 
 void pool_init(int);//初始化线程池
-int pool_add_worker(void* (*process)(void* arg),void*);
+int pool_add_worker(void (*process)(void* arg),void*);
 int pool_destory(); //销毁线程池
 void* thread_routine(void*);//工作线程
 void* func(void*);//测试任务

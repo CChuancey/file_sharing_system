@@ -16,7 +16,7 @@ void pool_init(int max_thread_num){
     thread_pool->cur_queue_size = 0;
 }
 
-int pool_add_worker(void* (*process)(void* arg),void* arg){
+int pool_add_worker(void (*process)(void* arg),void* arg){
     CThread_worker* worker = (CThread_worker*)malloc(sizeof(CThread_worker));
     worker->process = process;
     worker->arg = arg;
@@ -90,6 +90,8 @@ void* thread_routine(void* arg){
         CThread_worker* worker = thread_pool->queue_head;
         thread_pool->queue_head=worker->next;
         pthread_mutex_unlock(&thread_pool->queue_lock);
+        (*(worker->process))(worker->arg); //实际执行的任务函数
+        printf("thread 0x%lx worked out!\n",pthread_self());
         free(worker);
         worker=NULL;
     }
