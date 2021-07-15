@@ -48,10 +48,16 @@ typedef struct {
     int m_check_idx;
     int m_start_line;
 
+    CHECK_STATE check_state;
     char* m_url;
+    char* m_method;
+    char* m_http_version;
 
+    int m_content_length;
+    int m_linger;
+    char* m_host;
     //待添加
-
+    
 }http_request_t;
 
 typedef struct{
@@ -61,5 +67,7 @@ typedef struct{
 void init_http_request(int sockfd,int epollfd,http_request_t* request);
 void parse_http_request(void *);
 
+
+HTTP_CODE do_request(http_request_t*);
 
 #endif
