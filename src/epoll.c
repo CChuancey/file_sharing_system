@@ -46,8 +46,12 @@ void et(int epfd,int listenfd,int nums,struct epoll_event ready_events[]){
                     close(fd);
                     continue;
                 }
-                // put task into thread pool
-                pool_add_worker(parse_http_request,ready_events[i].data.ptr);
+                // put task into thread pool,process用于处理http请求
+                pool_add_worker(process,ready_events[i].data.ptr);
+        }else if(ready_events[i].events&EPOLLOUT){
+            if(write_sock(requst)==-1) close_conn(requst);
+        }else {
+
         }
     }
 }

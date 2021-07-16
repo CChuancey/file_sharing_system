@@ -2,11 +2,17 @@
 #define __HTTP_CONN_H__ 
 
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <sys/socket.h>
+#include <stdarg.h>
+#include <sys/uio.h>
+#include <sys/mman.h>
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define READ_BUFFSIZE 2048
 #define WRITE_BUFFSIZE 1024
+#define FILE_NAME_LEN 1024
 
 extern const char* ok_200_titile;
 extern const char* error_400_titile;
@@ -56,7 +62,15 @@ typedef struct {
     int m_content_length;
     int m_linger;
     char* m_host;
-    //待添加
+    
+    //响应部分
+    char m_write_buf[WRITE_BUFFSIZE];
+    char m_real_file[FILE_NAME_LEN];
+    char* m_file_address; //mmap地址
+    struct stat m_file_stat;
+    struct iovec m_iv[2];
+    int m_iv_count;
+    int m_write_idx;
     
 }http_request_t;
 
@@ -67,7 +81,11 @@ typedef struct{
 void init_http_request(int sockfd,int epollfd,http_request_t* request);
 void parse_http_request(void *);
 
+int write_sock(http_request_t*);
 
+void close_conn(http_request_t*);
+ 
+void process(void*);
 HTTP_CODE do_request(http_request_t*);
 
 #endif

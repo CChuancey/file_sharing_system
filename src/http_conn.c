@@ -83,6 +83,7 @@ LINE_STATUS parse_line(http_request_t* request){
             return LINE_BAD;
         }
     } 
+    return LINE_OPEN;
 }
 
 //获取请求方法(GET、POST) 以及url
@@ -136,6 +137,7 @@ HTTP_CODE parse_headers(http_request_t* request,char* text){
         text+=strspn(text," \t");
         request->m_host = text;
     }
+    return NO_REQUEST;
 }
 
 HTTP_CODE parse_content(http_request_t* request,char* text){
@@ -167,6 +169,7 @@ HTTP_CODE process_read(http_request_t* request){
         case CHECK_STATE_CONTENT:
             //检查请求体是否被完整
             http_code = parse_content(request,text);
+            //puts("check state content");
             if(http_code==GET_REQUEST) return do_request(request);
             line_status=LINE_OPEN;
             break;
@@ -180,20 +183,146 @@ HTTP_CODE process_read(http_request_t* request){
     return NO_REQUEST;
 }
 
-//有限状态机解析
-void parse_http_request(void* arg){
-    http_request_t* request = (http_request_t*)arg;
-    puts("thread is reading data");
-    if(read_buf(request)==0){ //读进缓冲区
-        puts(request->m_read_buf);
-        HTTP_CODE code = process_read(request);
-    }else{
-        puts("read err");
-        return; //请求读出错直接结束
+HTTP_CODE do_request(http_request_t* request){
+    puts("do request");
+    puts(request->m_read_buf+request->m_start_line);
+    //得到具体的请求
+}
+
+void unmap(http_request_t* request){
+    if(request->m_file_address){
+        munmap(request->m_file_address,request->m_file_stat.st_size);
+        request->m_file_address=0;
     }
 }
 
+int write_sock(http_request_t* request){
+    int bytes_have_send = 0;
+    int bytes_to_send = request->m_write_idx;
+    if(bytes_to_send==0) {
+        return 0;
+    }
+    while(1){
+        int temp = writev(request->epollfd,request->m_iv,request->m_iv_count);
+        if(temp<=1){
+            if(errno==EAGAIN){//写缓冲没有空间
+                return 0;
+            }
+            unmap(request);//取消内存映射
+            return -1;
+        }
+        bytes_to_send -= temp;
+        bytes_have_send+=temp;
+        if(bytes_to_send<=bytes_have_send){
+            unmap(request);
+            if(request->m_linger) return 0;
+            else return -1;
+        }
 
-HTTP_CODE do_request(http_request_t* request){
-    puts("do request");
+    }
+
 }
+
+int add_response(http_request_t* request,const char* format,...){
+    if(request->m_write_idx>=WRITE_BUFFSIZE) return -1;
+    va_list arg_list;
+    va_start(arg_list,format);
+    int len = vsnprintf(request->m_write_buf+request->m_write_idx,WRITE_BUFFSIZE-1-request->m_write_idx,
+                        format,arg_list);
+    if(len >= (WRITE_BUFFSIZE-1-request->m_write_idx)) return -1;
+    request->m_write_idx+=len;
+    va_end(arg_list);
+    return 0;
+}
+
+int add_status_line(http_request_t* request,int status,const char* title){
+    return add_response(request,"%s %d %s\r\n","HTTP/1.1",status,title);
+}
+
+int add_content_len(http_request_t* request,int content_len){
+    return add_response(request,"Content-Length: %d\r\n",content_len);
+}
+
+int add_linger(http_request_t* request){
+    return add_response(request,"Connection: %s\r\n",(request->m_linger==1)?"keep-alive":"close");
+}
+
+int add_blank_line(http_request_t* request){
+    return add_response(request,"%s","\r\n");
+}
+
+int add_content(http_request_t* request,const char* content){
+    return add_response(request,"%s",content);
+}
+
+void add_headers(http_request_t* request,int content_len){
+    add_content_len(request,content_len);
+    add_linger(request);
+    add_blank_line(request);
+}
+
+
+int process_write(http_request_t* request,HTTP_CODE code){
+    switch(code){
+    case INTERNAL_ERROR:
+        add_status_line(request,500,error_500_titile);
+        add_headers(request,strlen(error_500_titile));
+        if(add_content(request,error_500_form)==-1) return -1;
+        break;
+    case BAD_REQUEST:
+        add_status_line(request,400,error_400_titile);
+        add_headers(request,strlen(error_400_titile));
+        if(add_content(request,error_400_form)==-1) return -1;
+        break;
+    case NO_RESOURCE:
+        add_status_line(request,404,error_404_titile);
+        add_headers(request,strlen(error_404_titile));
+        if(add_content(request,error_404_form)==-1) return -1;
+        break;
+    case FORBIDDEN_REQUEST:
+        add_status_line(request,403,error_403_titile);
+        add_headers(request,strlen(error_403_titile));
+        if(add_content(request,error_403_form)==-1) return -1;
+        break;
+    case FILE_REQUEST:
+        add_status_line(request,200,ok_200_titile);
+        if(request->m_file_stat.st_size!=0){
+            add_headers(request,request->m_file_stat.st_size!=0);
+            request->m_iv[0].iov_base = request->m_write_buf;
+            request->m_iv[0].iov_len = request->m_write_idx;
+            request->m_iv[1].iov_base = request->m_file_address;
+            request->m_iv[1].iov_len = request->m_file_stat.st_size;
+            request->m_iv_count=2;
+            return 0;
+        }else{
+            const char* ok_string = "<html><body></body></html>";
+            add_headers(request,strlen(ok_string));
+            if(add_content(request,ok_string)==-1) return -1;
+        }
+        break;
+    default:
+        return -1;
+    }
+    request->m_iv[0].iov_base = request->m_write_buf;
+    request->m_iv[0].iov_len = request->m_write_idx;
+    request->m_iv_count=-1;
+    return 0;
+}
+
+void process(void* arg){
+    http_request_t* request = (http_request_t*)arg;
+    puts("thread is reading data");
+    HTTP_CODE code = NO_REQUEST;
+    if(read_buf(request)==0){ //读进缓冲区
+        puts(request->m_read_buf);
+        code = process_read(request);
+        if(code==BAD_REQUEST) {
+            puts("BAD_REQUEST");
+            return;
+        }
+        if(process_write(request,code)==-1) {//根据得到的request做出响应
+            close_conn(request);
+        }
+    }
+}
+
