@@ -56,7 +56,7 @@ typedef struct {
 
     CHECK_STATE check_state;
     char* m_url;
-    char* m_method;
+    METHOD m_method;
     char* m_http_version;
 
     int m_content_length;

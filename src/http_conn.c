@@ -15,16 +15,26 @@ const char* error_500_form = "There was an unsual problem serving the requested 
 
 const char *doc_root = "../doc";
 
+extern int listenfd;
 
 void init_http_request(int sockfd,int epollfd,http_request_t* request){
     request->sock_fd = sockfd;
     request->epollfd = epollfd;
-    memset(request->m_read_buf,0,sizeof(http_response_t));
+    memset(request->m_read_buf,'\0',sizeof(http_response_t));
     //待添加
     request->m_read_idx=0;
     request->m_check_idx=0;
     request->m_start_line=0;
     request->check_state=CHECK_STATE_REQUESTLINE;
+    request->m_content_length=0;
+    request->m_linger=0;
+    request->m_method=GET;
+    request->m_url=NULL;
+    request->m_http_version=NULL;
+    request->m_host=NULL;
+    request->m_write_idx=0;
+    memset(request->m_write_buf,'\0',WRITE_BUFFSIZE);
+    memset(request->m_real_file,'\0',FILE_NAME_LEN);
 }
 
 void close_conn(http_request_t* request){
@@ -93,7 +103,7 @@ HTTP_CODE parse_request_line(http_request_t* request,char* text){
     *request->m_url++ = '\0';
     char* method = text; //m_url为请求头余下的所有字符串
     if(strcasecmp(method,"GET")==0){
-        request->m_method = method;
+        request->m_method = GET;
     }else return BAD_REQUEST;
     request->m_url+=strspn(request->m_url," \t");
     request->m_http_version = strpbrk(request->m_url," \t");
@@ -118,6 +128,10 @@ HTTP_CODE parse_request_line(http_request_t* request,char* text){
 HTTP_CODE parse_headers(http_request_t* request,char* text){
     if(text[0]=='\0'){
         if(request->m_content_length!=0){
+            request->check_state=CHECK_STATE_CONTENT;
+            return NO_REQUEST;
+        }else if(request->m_content_length==0||strcmp(request->m_url,"\\")==0){
+            strcpy(request->m_url,"/index.html");
             request->check_state=CHECK_STATE_CONTENT;
             return NO_REQUEST;
         }
@@ -185,14 +199,26 @@ HTTP_CODE process_read(http_request_t* request){
 
 HTTP_CODE do_request(http_request_t* request){
     puts("do request");
-    puts(request->m_read_buf+request->m_start_line);
-    //得到具体的请求
+    //puts(request->m_read_buf+request->m_start_line);
+    strcpy(request->m_real_file,doc_root);
+    int len = strlen(doc_root);
+    strncpy(request->m_real_file+len,request->m_url,FILE_NAME_LEN-len-1);
+    puts(request->m_real_file);
+    if(stat(request->m_real_file,&request->m_file_stat)<0) return NO_RESOURCE;
+    if(!(request->m_file_stat.st_mode&S_IROTH)) return FORBIDDEN_REQUEST; //others没有读权限
+    if(S_ISDIR(request->m_file_stat.st_mode))//文件夹
+        return BAD_REQUEST;
+    int fd = open(request->m_real_file,O_RDONLY);
+    request->m_file_address = (char*)mmap(NULL,request->m_file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
+    close(fd);
+    return FILE_REQUEST;
+
 }
 
 void unmap(http_request_t* request){
     if(request->m_file_address){
         munmap(request->m_file_address,request->m_file_stat.st_size);
-        request->m_file_address=0;
+        request->m_file_address=NULL;
     }
 }
 
@@ -200,23 +226,34 @@ int write_sock(http_request_t* request){
     int bytes_have_send = 0;
     int bytes_to_send = request->m_write_idx;
     if(bytes_to_send==0) {
+        modfd(epfd,request,EPOLLIN);
+        init_http_request(listenfd,epfd,request);
         return 0;
     }
     while(1){
-        int temp = writev(request->epollfd,request->m_iv,request->m_iv_count);
-        if(temp<=1){
+        int temp = writev(request->sock_fd,request->m_iv,request->m_iv_count);
+        if(temp<=-1){
             if(errno==EAGAIN){//写缓冲没有空间
+                modfd(epfd,request,EPOLLOUT);
                 return 0;
             }
             unmap(request);//取消内存映射
+            perror("writev()");
+            puts("writev error");
             return -1;
         }
         bytes_to_send -= temp;
         bytes_have_send+=temp;
         if(bytes_to_send<=bytes_have_send){
             unmap(request);
-            if(request->m_linger) return 0;
-            else return -1;
+            if(request->m_linger) {
+                init_http_request(listenfd,epfd,request);
+                modfd(epfd,request,EPOLLIN);
+                return 0;
+            }else{
+                modfd(epfd,request,EPOLLIN);
+                return -1;
+            }
         }
 
     }
@@ -287,7 +324,7 @@ int process_write(http_request_t* request,HTTP_CODE code){
     case FILE_REQUEST:
         add_status_line(request,200,ok_200_titile);
         if(request->m_file_stat.st_size!=0){
-            add_headers(request,request->m_file_stat.st_size!=0);
+            add_headers(request,request->m_file_stat.st_size);
             request->m_iv[0].iov_base = request->m_write_buf;
             request->m_iv[0].iov_len = request->m_write_idx;
             request->m_iv[1].iov_base = request->m_file_address;
@@ -320,9 +357,11 @@ void process(void* arg){
             puts("BAD_REQUEST");
             return;
         }
+        //puts(request->m_real_file);
         if(process_write(request,code)==-1) {//根据得到的request做出响应
             close_conn(request);
         }
     }
+    modfd(epfd,request,EPOLLOUT);
 }
 

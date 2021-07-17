@@ -19,6 +19,7 @@
 int setnonblocking(int);
 void addfd(int epollfd,http_request_t*,int enable_et);
 void removefd(int epollfd,http_request_t*);
+void modfd(int epollfd,http_request_t*,int);
 void et(int epfd,int listenfd,int nums,struct epoll_event ready_events[]);
  
 extern int epfd;

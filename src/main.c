@@ -17,7 +17,7 @@
 
 int exit_flag = 0;
 int thread_num = 0;
-int connfd = -1;
+int listenfd = -1;
 
 int epfd=-1;
 int clientnum=0;
@@ -106,14 +106,14 @@ int main(int argc,char** argv) {
     openlog("webServer",LOG_NDELAY|LOG_PID,LOG_DAEMON);
     syslog(LOG_INFO,"webServer started successfully!\n");
 
-    connfd = init_server_socket(12346,500);
+    listenfd = init_server_socket(12346,500);
     //connfd 要设置成非阻塞的,并放进监听池中
     epfd = epoll_create(1);
     assert(epfd!=-1);
 
     http_request_t* request = (http_request_t* )malloc(sizeof(http_request_t));
-    init_http_request(connfd,epfd,request);
-    addfd(epfd,request,1);
+    init_http_request(listenfd,epfd,request);
+    addfd(epfd,request,0);
 
     struct epoll_event ready_events[EVENTS_MAX_NUM];
 
@@ -122,11 +122,11 @@ int main(int argc,char** argv) {
     while(1) {
         int nums = epoll_wait(epfd,ready_events,EVENTS_MAX_NUM,-1);
         assert(nums!=-1);
-        et(epfd,connfd,nums,ready_events); //发现请求后放进线程池
+        et(epfd,listenfd,nums,ready_events); //发现请求后放进线程池
     }
     pool_destory();
     closelog();
-    close(connfd);
+    close(listenfd);
     return 0;
 }
 

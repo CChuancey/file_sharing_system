@@ -9,15 +9,23 @@ int setnonblocking(int fd){ //设置为非阻塞的fd
     return preStatusFlags;
 }
 
-void addfd(int epollfd,http_request_t* request,int enable_et){
+void addfd(int epollfd,http_request_t* request,int enable_oneshot){
     struct epoll_event event;
-    event.events = EPOLLIN;
+    event.events = EPOLLIN|EPOLLHUP|EPOLLET;
     event.data.ptr = (void*)request;
     int fd = request->sock_fd;
-    if(enable_et) event.events |= EPOLLET;
+    if(enable_oneshot) event.events |= EPOLLONESHOT;
     if(epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&event)==-1) exitErr("epoll_ctl()");
     setnonblocking(fd);
     clientnum++;
+}
+
+void modfd(int epollfd,http_request_t* request,int ev){
+    struct epoll_event event;
+    event.events = ev | EPOLLET | EPOLLRDHUP|EPOLLONESHOT;
+    event.data.ptr = (void*)request;
+    int fd = request->sock_fd;
+    epoll_ctl(epollfd,EPOLL_CTL_MOD,fd,&event);
 }
 
 void removefd(int epollfd,http_request_t* request){
@@ -49,7 +57,11 @@ void et(int epfd,int listenfd,int nums,struct epoll_event ready_events[]){
                 // put task into thread pool,process用于处理http请求
                 pool_add_worker(process,ready_events[i].data.ptr);
         }else if(ready_events[i].events&EPOLLOUT){
-            if(write_sock(requst)==-1) close_conn(requst);
+            puts("epollout ready!");
+            if(write_sock(requst)==-1) {
+                puts("hhh0");
+                close_conn(requst);
+            }
         }else {
 
         }
