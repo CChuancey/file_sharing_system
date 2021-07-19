@@ -37,7 +37,7 @@ typedef enum{
 }CHECK_STATE;//有限状态机状态码
 
 typedef enum{
-    NO_REQUEST,GET_REQUEST,BAD_REQUEST,NO_RESOURCE,FORBIDDEN_REQUEST,FILE_REQUEST,
+    NO_REQUEST,GET_REQUEST,POST_REQUEST,BAD_REQUEST,NO_RESOURCE,FORBIDDEN_REQUEST,FILE_REQUEST,
     INTERNAL_ERROR,CLOSED_CONNECTION
 }HTTP_CODE;//处理http请求可能的状态码
 
@@ -58,6 +58,8 @@ typedef struct {
     char* m_url;
     METHOD m_method;
     char* m_http_version;
+    char* m_content_type;
+    char* m_form_data;
 
     int m_content_length;
     int m_linger;

@@ -104,6 +104,8 @@ HTTP_CODE parse_request_line(http_request_t* request,char* text){
     char* method = text; //m_url为请求头余下的所有字符串
     if(strcasecmp(method,"GET")==0){
         request->m_method = GET;
+    }else if(strcasecmp(method,"POST")==0){
+        request->m_method=POST;
     }else return BAD_REQUEST;
     request->m_url+=strspn(request->m_url," \t");
     request->m_http_version = strpbrk(request->m_url," \t");
@@ -130,7 +132,7 @@ HTTP_CODE parse_headers(http_request_t* request,char* text){
         if(request->m_content_length!=0){
             request->check_state=CHECK_STATE_CONTENT;
             return NO_REQUEST;
-        }else if(request->m_content_length==0||strcmp(request->m_url,"\\")==0){
+        }else if(strcmp(request->m_url,"/")==0){//如果不加主页路径，返回主页
             strcpy(request->m_url,"/index.html");
             request->check_state=CHECK_STATE_CONTENT;
             return NO_REQUEST;
@@ -150,6 +152,10 @@ HTTP_CODE parse_headers(http_request_t* request,char* text){
         text+=5;
         text+=strspn(text," \t");
         request->m_host = text;
+    }else if(strncasecmp(text,"Content-Type:",13)==0){
+        text+=13;
+        text+=strspn(text,"\t");
+        request->m_content_type = text;
     }
     return NO_REQUEST;
 }
@@ -157,7 +163,10 @@ HTTP_CODE parse_headers(http_request_t* request,char* text){
 HTTP_CODE parse_content(http_request_t* request,char* text){
     if(request->m_read_idx>=(request->m_content_length+request->m_check_idx)){
         text[request->m_content_length]='\0';
-        return GET_REQUEST;
+        if(request->m_method==POST){//仅为POST请求处理下form data
+            request->m_form_data = request->m_read_buf+request->m_start_line;
+            return POST_REQUEST;
+        }else return GET_REQUEST;
     }
     return NO_REQUEST;
 }
@@ -184,7 +193,7 @@ HTTP_CODE process_read(http_request_t* request){
             //检查请求体是否被完整
             http_code = parse_content(request,text);
             //puts("check state content");
-            if(http_code==GET_REQUEST) return do_request(request);
+            if(http_code==GET_REQUEST||http_code==POST_REQUEST) return do_request(request);
             line_status=LINE_OPEN;
             break;
 
@@ -193,10 +202,11 @@ HTTP_CODE process_read(http_request_t* request){
         }
 
     }
-    printf("Host:%s\nConnection:%d\nConten_length:%d\n",request->m_host,request->m_linger,request->m_content_length);
     return NO_REQUEST;
 }
 
+//如果是post请求，根据url确定请求的可执行程序，
+//如果是get请求，根据url确定请求的文件
 HTTP_CODE do_request(http_request_t* request){
     puts("do request");
     //puts(request->m_read_buf+request->m_start_line);
@@ -208,11 +218,15 @@ HTTP_CODE do_request(http_request_t* request){
     if(!(request->m_file_stat.st_mode&S_IROTH)) return FORBIDDEN_REQUEST; //others没有读权限
     if(S_ISDIR(request->m_file_stat.st_mode))//文件夹
         return BAD_REQUEST;
-    int fd = open(request->m_real_file,O_RDONLY);
-    request->m_file_address = (char*)mmap(NULL,request->m_file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
-    close(fd);
-    return FILE_REQUEST;
-
+    if(request->m_method==GET){
+        int fd = open(request->m_real_file,O_RDONLY);
+        request->m_file_address = (char*)mmap(NULL,request->m_file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
+        close(fd);
+        return FILE_REQUEST;
+    }else if(request->m_method==POST){//POST请求处理
+        return POST_REQUEST;
+    }
+    return NO_REQUEST;
 }
 
 void unmap(http_request_t* request){
@@ -239,7 +253,6 @@ int write_sock(http_request_t* request){
             }
             unmap(request);//取消内存映射
             perror("writev()");
-            puts("writev error");
             return -1;
         }
         bytes_to_send -= temp;
@@ -250,7 +263,7 @@ int write_sock(http_request_t* request){
                 init_http_request(listenfd,epfd,request);
                 modfd(epfd,request,EPOLLIN);
                 return 0;
-            }else{
+            }else{//connection: 0
                 modfd(epfd,request,EPOLLIN);
                 return -1;
             }
@@ -331,18 +344,20 @@ int process_write(http_request_t* request,HTTP_CODE code){
             request->m_iv[1].iov_len = request->m_file_stat.st_size;
             request->m_iv_count=2;
             return 0;
-        }else{
+        }else{//根据请求的url判定是否为文件，且文件存在为空文件
             const char* ok_string = "<html><body></body></html>";
             add_headers(request,strlen(ok_string));
             if(add_content(request,ok_string)==-1) return -1;
         }
+    case POST_REQUEST:
+
         break;
     default:
         return -1;
     }
     request->m_iv[0].iov_base = request->m_write_buf;
     request->m_iv[0].iov_len = request->m_write_idx;
-    request->m_iv_count=-1;
+    request->m_iv_count=1;
     return 0;
 }
 
@@ -353,12 +368,16 @@ void process(void* arg){
     if(read_buf(request)==0){ //读进缓冲区
         puts(request->m_read_buf);
         code = process_read(request);
+        printf("Host:%s\nConnection:%d\nConten_length:%d\nContent-Type:%s\n\nContent:%s\n",
+               request->m_host,request->m_linger,request->m_content_length,request->m_content_type,request->m_read_buf+request->m_start_line);
+
         if(code==BAD_REQUEST) {
             puts("BAD_REQUEST");
             return;
         }
         //puts(request->m_real_file);
         if(process_write(request,code)==-1) {//根据得到的request做出响应
+            puts("process write error");
             close_conn(request);
         }
     }
