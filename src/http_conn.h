@@ -8,8 +8,11 @@
 #include <stdarg.h>
 #include <sys/uio.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
+
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
+#define exitErr(func) {perror(func);exit(EXIT_FAILURE);}
 #define READ_BUFFSIZE 2048
 #define WRITE_BUFFSIZE 1024
 #define FILE_NAME_LEN 1024
@@ -60,6 +63,8 @@ typedef struct {
     char* m_http_version;
     char* m_content_type;
     char* m_form_data;
+
+    char* m_post_args[4];
 
     int m_content_length;
     int m_linger;

@@ -213,7 +213,8 @@ HTTP_CODE do_request(http_request_t* request){
     strcpy(request->m_real_file,doc_root);
     int len = strlen(doc_root);
     strncpy(request->m_real_file+len,request->m_url,FILE_NAME_LEN-len-1);
-    puts(request->m_real_file);
+    //puts(request->m_real_file);
+    //puts(request->m_url);
     if(stat(request->m_real_file,&request->m_file_stat)<0) return NO_RESOURCE;
     if(!(request->m_file_stat.st_mode&S_IROTH)) return FORBIDDEN_REQUEST; //others没有读权限
     if(S_ISDIR(request->m_file_stat.st_mode))//文件夹
@@ -224,6 +225,17 @@ HTTP_CODE do_request(http_request_t* request){
         close(fd);
         return FILE_REQUEST;
     }else if(request->m_method==POST){//POST请求处理
+        char* post_msg = request->m_read_buf+request->m_start_line;
+        request->m_post_args[0] = "login";
+        size_t len = strspn(post_msg,"username=");
+        request->m_post_args[1] = post_msg+len;
+        post_msg = strpbrk(post_msg,"&");
+        *post_msg++='\0';
+        len = strspn(post_msg,"passwd=");
+        request->m_post_args[2] = post_msg+len;
+        request->m_post_args[3] = NULL;
+            
+        //puts("processed post_args");
         return POST_REQUEST;
     }
     return NO_REQUEST;
@@ -313,6 +325,7 @@ void add_headers(http_request_t* request,int content_len){
 
 
 int process_write(http_request_t* request,HTTP_CODE code){
+    int waitid;
     switch(code){
     case INTERNAL_ERROR:
         add_status_line(request,500,error_500_titile);
@@ -350,7 +363,30 @@ int process_write(http_request_t* request,HTTP_CODE code){
             if(add_content(request,ok_string)==-1) return -1;
         }
     case POST_REQUEST:
-
+        if(strncasecmp(request->m_url+1,"login",5)==0){//登录
+            pid_t pid = fork();
+            switch(pid){
+            case -1:
+                exitErr("func");
+                break;
+            case 0:
+                execvp(request->m_real_file,request->m_post_args);
+                puts("execvp err");
+                break;
+            default://父进程
+                wait(&waitid);
+                if(waitid>>8==0){//exit_num = waitid>>8
+                    //正常登录,正常应该加302以及setcookie，这里自行设计cs架构，就不涉及了
+                    add_status_line(request,200,ok_200_titile);
+                    add_headers(request,strlen("login successfully!"));
+                    if(add_content(request,"login successfully!")==-1) return -1;
+                }else{//账号密码错误
+                    add_status_line(request,400,error_400_titile);
+                    add_headers(request,strlen(error_400_form));
+                    if(add_content(request,error_400_form)==-1) return -1;
+                }
+            }
+        }
         break;
     default:
         return -1;
@@ -368,8 +404,8 @@ void process(void* arg){
     if(read_buf(request)==0){ //读进缓冲区
         puts(request->m_read_buf);
         code = process_read(request);
-        printf("Host:%s\nConnection:%d\nConten_length:%d\nContent-Type:%s\n\nContent:%s\n",
-               request->m_host,request->m_linger,request->m_content_length,request->m_content_type,request->m_read_buf+request->m_start_line);
+        //printf("Host:%s\nConnection:%d\nConten_length:%d\nContent-Type:%s\n\nContent:%s\n",
+        //       request->m_host,request->m_linger,request->m_content_length,request->m_content_type,request->m_read_buf+request->m_start_line);
 
         if(code==BAD_REQUEST) {
             puts("BAD_REQUEST");
