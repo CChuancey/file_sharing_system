@@ -33,6 +33,8 @@ void init_http_request(int sockfd,int epollfd,http_request_t* request){
     request->m_http_version=NULL;
     request->m_host=NULL;
     request->m_write_idx=0;
+    request->m_iv_count=0;
+    request->m_file_address=NULL;
     memset(request->m_write_buf,'\0',WRITE_BUFFSIZE);
     memset(request->m_real_file,'\0',FILE_NAME_LEN);
 }
@@ -253,7 +255,7 @@ int write_sock(http_request_t* request){
     int bytes_to_send = request->m_write_idx;
     if(bytes_to_send==0) {
         modfd(epfd,request,EPOLLIN);
-        init_http_request(listenfd,epfd,request);
+        init_http_request(request->sock_fd,epfd,request);
         return 0;
     }
     while(1){
@@ -270,9 +272,10 @@ int write_sock(http_request_t* request){
         bytes_to_send -= temp;
         bytes_have_send+=temp;
         if(bytes_to_send<=bytes_have_send){
+            puts("http response ok");
             unmap(request);
             if(request->m_linger) {
-                init_http_request(listenfd,epfd,request);
+                init_http_request(request->sock_fd,epfd,request);
                 modfd(epfd,request,EPOLLIN);
                 return 0;
             }else{//connection: 0

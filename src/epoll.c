@@ -22,7 +22,7 @@ void addfd(int epollfd,http_request_t* request,int enable_oneshot){
 
 void modfd(int epollfd,http_request_t* request,int ev){
     struct epoll_event event;
-    event.events = ev | EPOLLET | EPOLLRDHUP|EPOLLONESHOT;
+    event.events = ev | EPOLLET | EPOLLRDHUP | EPOLLONESHOT;
     event.data.ptr = (void*)request;
     int fd = request->sock_fd;
     epoll_ctl(epollfd,EPOLL_CTL_MOD,fd,&event);
@@ -42,19 +42,19 @@ void et(int epfd,int listenfd,int nums,struct epoll_event ready_events[]){
             struct sockaddr_in cliendSockAddr;
             socklen_t len = sizeof(cliendSockAddr);
             int clientSockfd = accept(listenfd,(struct sockaddr*)&cliendSockAddr,&len);
-            assert(clientSockfd!=-1);
-            puts("one client connected!");
+            if(clientSockfd==-1){//非阻塞fd使用阻塞调用时的EAGAIN问题
+                if(errno==EAGAIN||errno==EINTR){
+                    continue;
+                }
+                exitErr("accept()");
+            }
+            puts("Communication has been established with the server");
             http_request_t* client_request = (http_request_t*)malloc(sizeof(http_request_t));
             init_http_request(clientSockfd,epfd,client_request);
             addfd(epfd,client_request,1);
         }else if(ready_events[i].events&EPOLLIN){ //et模式下不会重复触发
-                //有事件发生
-                if ((ready_events[i].events & EPOLLERR) || (ready_events[i].events & EPOLLHUP)
-                    || (!(ready_events[i].events & EPOLLIN))) {
-                    close(fd);
-                    continue;
-                }
                 // put task into thread pool,process用于处理http请求
+                puts("one request detected!");
                 pool_add_worker(process,ready_events[i].data.ptr);
         }else if(ready_events[i].events&EPOLLOUT){
             //puts("epollout ready!");
@@ -62,8 +62,12 @@ void et(int epfd,int listenfd,int nums,struct epoll_event ready_events[]){
                 puts("write_sock error || connction is 0");
                 close_conn(requst);
             }
-        }else {
-
+        }else if ((ready_events[i].events & EPOLLERR) || (ready_events[i].events & EPOLLHUP)
+                    || (!(ready_events[i].events & EPOLLIN))) {
+                    close(fd);
+                    continue;
+             }
+        else{
         }
     }
 }
