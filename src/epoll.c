@@ -53,21 +53,21 @@ void et(int epfd,int listenfd,int nums,struct epoll_event ready_events[]){
             init_http_request(clientSockfd,epfd,client_request);
             addfd(epfd,client_request,1);
         }else if(ready_events[i].events&EPOLLIN){ //et模式下不会重复触发
-                // put task into thread pool,process用于处理http请求
-                puts("one request detected!");
-                pool_add_worker(process,ready_events[i].data.ptr);
+            // put task into thread pool,process用于处理http请求
+            if ((ready_events[i].events & EPOLLERR) || (ready_events[i].events & EPOLLHUP) || (ready_events[i].events&EPOLLRDHUP)
+                || (!(ready_events[i].events & EPOLLIN))) {
+                removefd(epfd,requst);
+                close(fd);
+                continue;
+            }
+            pool_add_worker(process,ready_events[i].data.ptr);
         }else if(ready_events[i].events&EPOLLOUT){
             //puts("epollout ready!");
             if(write_sock(requst)==-1) {
                 puts("write_sock error || connction is 0");
                 close_conn(requst);
             }
-        }else if ((ready_events[i].events & EPOLLERR) || (ready_events[i].events & EPOLLHUP)
-                    || (!(ready_events[i].events & EPOLLIN))) {
-                    close(fd);
-                    continue;
-             }
-        else{
+        }else{
         }
     }
 }
