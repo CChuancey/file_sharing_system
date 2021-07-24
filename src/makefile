@@ -11,7 +11,7 @@ OBJS = $(patsubst %.c,%.o,$(SRCS)) #将SRCS中.c换成.o
 all: $(target)
 
 $(target): $(SRCS)
-	$(CC) $(SRCS) -o $@ -Wall -lpthread
+	$(CC) $(SRCS) -o $@ -Wall -lpthread -lmysqlclient
 
 clean:
 	rm -f $(target)

@@ -50,7 +50,7 @@ void et(int epfd,int listenfd,int nums,struct epoll_event ready_events[]){
             }
             puts("Communication has been established with the server");
             http_request_t* client_request = (http_request_t*)malloc(sizeof(http_request_t));
-            init_http_request(clientSockfd,epfd,client_request);
+            init_http_request(clientSockfd,epfd,client_request,0);
             addfd(epfd,client_request,1);
         }else if(ready_events[i].events&EPOLLIN){ //et模式下不会重复触发
             // put task into thread pool,process用于处理http请求

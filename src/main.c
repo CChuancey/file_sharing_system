@@ -112,7 +112,7 @@ int main(int argc,char** argv) {
     assert(epfd!=-1);
 
     http_request_t* request = (http_request_t* )malloc(sizeof(http_request_t));
-    init_http_request(listenfd,epfd,request);
+    init_http_request(listenfd,epfd,request,0);
     addfd(epfd,request,0);
 
     struct epoll_event ready_events[EVENTS_MAX_NUM];

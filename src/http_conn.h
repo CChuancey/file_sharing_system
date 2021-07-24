@@ -16,6 +16,7 @@
 #define READ_BUFFSIZE 2048
 #define WRITE_BUFFSIZE 1024
 #define FILE_NAME_LEN 1024
+#define USER_NAME_LEN 1024
 
 extern const char* ok_200_titile;
 extern const char* error_400_titile;
@@ -64,6 +65,8 @@ typedef struct {
     char* m_content_type;
     char* m_form_data;
 
+    int login_state;
+    char username[USER_NAME_LEN];
     char* m_post_args[4];
 
     int m_content_length;
@@ -85,7 +88,7 @@ typedef struct{
 
 }http_response_t;
 
-void init_http_request(int sockfd,int epollfd,http_request_t* request);
+void init_http_request(int sockfd,int epollfd,http_request_t* request,int backup);
 void parse_http_request(void *);
 
 int write_sock(http_request_t*);

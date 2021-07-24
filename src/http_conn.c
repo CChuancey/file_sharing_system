@@ -1,7 +1,9 @@
 #include "http_conn.h"
 #include <string.h>
 #include <errno.h>
+#include <string.h>
 #include "epoll.h"
+#include "utils.h"
 
 const char* ok_200_titile = "OK";
 const char* error_400_titile = "Bad Request";
@@ -17,7 +19,7 @@ const char *doc_root = "../doc";
 
 extern int listenfd;
 
-void init_http_request(int sockfd,int epollfd,http_request_t* request){
+void init_http_request(int sockfd,int epollfd,http_request_t* request,int backup){
     request->sock_fd = sockfd;
     request->epollfd = epollfd;
     memset(request->m_read_buf,'\0',sizeof(http_response_t));
@@ -37,6 +39,11 @@ void init_http_request(int sockfd,int epollfd,http_request_t* request){
     request->m_file_address=NULL;
     memset(request->m_write_buf,'\0',WRITE_BUFFSIZE);
     memset(request->m_real_file,'\0',FILE_NAME_LEN);
+    if(backup==0){//登录成功后需要保存状态
+        request->login_state=0;
+        memset(request->username,'\0',USER_NAME_LEN);
+        memset(request->m_post_args,'\0',sizeof(request->m_post_args));
+    }
 }
 
 void close_conn(http_request_t* request){
@@ -228,17 +235,26 @@ HTTP_CODE do_request(http_request_t* request){
         return FILE_REQUEST;
     }else if(request->m_method==POST){//POST请求处理
         char* post_msg = request->m_read_buf+request->m_start_line;
-        request->m_post_args[0] = "login";
-        size_t len = strspn(post_msg,"username=");
-        request->m_post_args[1] = post_msg+len;
-        post_msg = strpbrk(post_msg,"&");
-        *post_msg++='\0';
-        len = strspn(post_msg,"passwd=");
-        request->m_post_args[2] = post_msg+len;
-        request->m_post_args[3] = NULL;
-            
-        //puts("processed post_args");
-        return POST_REQUEST;
+        if(strncasecmp(request->m_url+1,"login",5)==0){
+            //处理登录的post请求参数
+            request->m_post_args[0] = "login";
+            size_t len = strspn(post_msg,"username=");
+            request->m_post_args[1] = post_msg+len;
+            post_msg = strpbrk(post_msg,"&");
+            *post_msg++='\0';
+            len = strspn(post_msg,"passwd=");
+            request->m_post_args[2] = post_msg+len;
+            request->m_post_args[3] = NULL;
+            //puts("processed post_args");
+            return POST_REQUEST;
+        }else if(strncasecmp(request->m_url+1,"get_user_info",13)==0){
+            request->m_post_args[0] = "get_user_info";
+            size_t len = strspn(post_msg,"username=");
+            request->m_post_args[1] = post_msg+len;
+            request->m_post_args[2] = NULL;
+
+            return POST_REQUEST;
+        } 
     }
     return NO_REQUEST;
 }
@@ -255,7 +271,7 @@ int write_sock(http_request_t* request){
     int bytes_to_send = request->m_write_idx;
     if(bytes_to_send==0) {
         modfd(epfd,request,EPOLLIN);
-        init_http_request(request->sock_fd,epfd,request);
+        init_http_request(request->sock_fd,epfd,request,request->login_state);
         return 0;
     }
     while(1){
@@ -275,7 +291,8 @@ int write_sock(http_request_t* request){
             puts("http response ok");
             unmap(request);
             if(request->m_linger) {
-                init_http_request(request->sock_fd,epfd,request);
+                //保存旧状态
+                init_http_request(request->sock_fd,epfd,request,request->login_state);
                 modfd(epfd,request,EPOLLIN);
                 return 0;
             }else{//connection: 0
@@ -332,22 +349,22 @@ int process_write(http_request_t* request,HTTP_CODE code){
     switch(code){
     case INTERNAL_ERROR:
         add_status_line(request,500,error_500_titile);
-        add_headers(request,strlen(error_500_titile));
+        add_headers(request,strlen(error_500_form));
         if(add_content(request,error_500_form)==-1) return -1;
         break;
     case BAD_REQUEST:
         add_status_line(request,400,error_400_titile);
-        add_headers(request,strlen(error_400_titile));
+        add_headers(request,strlen(error_400_form));
         if(add_content(request,error_400_form)==-1) return -1;
         break;
     case NO_RESOURCE:
         add_status_line(request,404,error_404_titile);
-        add_headers(request,strlen(error_404_titile));
+        add_headers(request,strlen(error_404_form));
         if(add_content(request,error_404_form)==-1) return -1;
         break;
     case FORBIDDEN_REQUEST:
         add_status_line(request,403,error_403_titile);
-        add_headers(request,strlen(error_403_titile));
+        add_headers(request,strlen(error_403_form));
         if(add_content(request,error_403_form)==-1) return -1;
         break;
     case FILE_REQUEST:
@@ -365,7 +382,7 @@ int process_write(http_request_t* request,HTTP_CODE code){
             add_headers(request,strlen(ok_string));
             if(add_content(request,ok_string)==-1) return -1;
         }
-    case POST_REQUEST:
+    case POST_REQUEST://login采用父子进程的方法，获取用户数据采用函数直接调用的方式,存放在doc里的为空文件
         if(strncasecmp(request->m_url+1,"login",5)==0){//登录
             pid_t pid = fork();
             switch(pid){
@@ -380,15 +397,32 @@ int process_write(http_request_t* request,HTTP_CODE code){
                 wait(&waitid);
                 if(waitid>>8==0){//exit_num = waitid>>8
                     //正常登录,正常应该加302以及setcookie，这里自行设计cs架构，就不涉及了
+                    request->login_state=1;
+                    memcpy(request->username,request->m_post_args[1],strlen(request->m_post_args[1]));
                     add_status_line(request,200,ok_200_titile);
                     add_headers(request,strlen("login successfully!"));
                     if(add_content(request,"login successfully!")==-1) return -1;
                 }else{//账号密码错误
-                    add_status_line(request,400,error_400_titile);
-                    add_headers(request,strlen(error_400_form));
-                    if(add_content(request,error_400_form)==-1) return -1;
+                    return process_write(request,BAD_REQUEST);
                 }
             }
+        }else if(strncasecmp(request->m_url+1,"get_user_info",13)==0){
+            puts("process get_user_info");
+            if(request->login_state==0){//还未登录
+                return process_write(request,FORBIDDEN_REQUEST);
+            }else{//查询用户信息
+                char* user_info = get_user_info(request->username);
+                if(user_info==NULL){
+                    fprintf(stderr,"mysql get user_info errr\n");
+                    return -1;
+                }else{//用户信息获取成功
+                    add_status_line(request,200,ok_200_titile);
+                    add_headers(request,strlen(user_info));
+                    if(add_content(request,user_info)==-1) return -1;
+                }
+            }
+        }else {
+
         }
         break;
     default:
@@ -414,7 +448,7 @@ void process(void* arg){
             puts("BAD_REQUEST");
             return;
         }
-        //puts(request->m_real_file);
+        puts(request->m_url);
         if(process_write(request,code)==-1) {//根据得到的request做出响应
             puts("process write error");
             close_conn(request);
