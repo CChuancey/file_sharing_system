@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 int connect_to_sql(MYSQL** mysql){
     *mysql = mysql_init(NULL);
@@ -21,6 +22,14 @@ char* get_user_info(char* username){
     sprintf(sql_str,"SELECT * FROM user WHERE name='%s';",username);
     MYSQL* mysql=NULL;
     if(connect_to_sql(&mysql)==-1) return NULL;//得到空查询
+    if(mysql==NULL) {
+        fprintf(stderr,"connect_to_sql failed\n");
+        return NULL;
+    }
+    if(mysql_real_query(mysql,sql_str,strlen(sql_str))!=0){
+        fprintf(stderr,"mysql query failed:%s\n",mysql_error(mysql));
+        return NULL;
+    }
     MYSQL_RES* res = mysql_store_result(mysql);
     if(res==NULL){
         fprintf(stderr,"fetch result failed: %s\n",mysql_error(mysql));

@@ -414,7 +414,7 @@ int process_write(http_request_t* request,HTTP_CODE code){
                 char* user_info = get_user_info(request->username);
                 if(user_info==NULL){
                     fprintf(stderr,"mysql get user_info errr\n");
-                    return -1;
+                    return process_write(request,INTERNAL_ERROR);
                 }else{//用户信息获取成功
                     add_status_line(request,200,ok_200_titile);
                     add_headers(request,strlen(user_info));
