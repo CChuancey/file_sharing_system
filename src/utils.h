@@ -12,5 +12,5 @@
 #include "http_conn.h"
 
 char* get_user_info(char*);
-
+char* get_json_str(const char* url);
 #endif

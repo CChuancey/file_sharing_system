@@ -4,6 +4,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include "cJSON.h"
+#include <sys/stat.h>
+#include <dirent.h>
+#include <time.h>
+
+#define exitErr(func) {perror(func);exit(EXIT_FAILURE);}
+#define PATH_LEN 300
 
 int connect_to_sql(MYSQL** mysql){
     *mysql = mysql_init(NULL);
@@ -48,3 +55,60 @@ char* get_user_info(char* username){
     mysql_library_end();
     return ret; //记得释放！！
 }
+
+char* get_json_str(const char* url){
+    DIR* dir = opendir(url);
+    if(dir==NULL) return NULL;
+    struct dirent* item=NULL;
+    struct stat stat_buf;
+    //先创建一个对象
+    cJSON* res = cJSON_CreateObject();
+    if(res==NULL) return NULL;
+
+    cJSON* file_arry = cJSON_CreateArray();
+    if(file_arry==NULL) return NULL;
+    cJSON_AddItemToObject(res,"list",file_arry);
+
+    cJSON* name=NULL;
+    cJSON* type=NULL;
+    cJSON* size=NULL;
+    cJSON* m_time=NULL;
+
+    while((item=readdir(dir))!=NULL){
+        char filePath[PATH_LEN*2];
+        sprintf(filePath,"%s/%s",url,item->d_name);
+        if(stat(filePath,&stat_buf)==-1) exitErr("stat()");
+        if(strcasecmp(".",item->d_name)==0||strcasecmp("..",item->d_name)==0){
+            continue;
+        }
+        cJSON* cur = cJSON_CreateObject();
+        if(cur==NULL) return NULL;
+        cJSON_AddItemToArray(file_arry,cur);
+
+        name = cJSON_CreateString(item->d_name);
+        cJSON_AddItemToObject(cur,"name",name);
+
+        //dir?
+        if(S_ISDIR(stat_buf.st_mode)) {
+            type = cJSON_CreateString("dir");
+        }else{
+            type = cJSON_CreateString("reg");
+        }
+        cJSON_AddItemToObject(cur,"type",type);
+
+        //size
+        size = cJSON_CreateNumber(stat_buf.st_size);
+        cJSON_AddItemToObject(cur,"size",size);
+
+        //time
+        char* ac_time = ctime(&stat_buf.st_ctime)+4;
+        ac_time[strlen(ac_time)-1]='\0';
+        m_time = cJSON_CreateString(ac_time);
+        cJSON_AddItemToObject(cur,"time",m_time);
+    }
+
+    char* ret = cJSON_Print(res);
+    cJSON_Delete(res);
+    return ret;
+}
+
