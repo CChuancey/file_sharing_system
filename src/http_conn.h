@@ -41,13 +41,17 @@ typedef enum{
 }CHECK_STATE;//有限状态机状态码
 
 typedef enum{
-    NO_REQUEST,GET_REQUEST,POST_REQUEST,BAD_REQUEST,NO_RESOURCE,FORBIDDEN_REQUEST,FILE_REQUEST,
+    NO_REQUEST,GET_REQUEST,POST_REQUEST,BAD_REQUEST,NO_RESOURCE,FORBIDDEN_REQUEST,FILE_REQUEST,HTML_REQUEST,
     INTERNAL_ERROR,CLOSED_CONNECTION
 }HTTP_CODE;//处理http请求可能的状态码
 
 typedef enum{
     LINE_OK=0,LINE_BAD,LINE_OPEN
 }LINE_STATUS;//行的读取状态
+
+typedef enum{
+    TEXT_HTML,APPLICATION_OCTET_STREAM
+}CONTENT_TYPE;
 
 typedef struct {
     int sock_fd;//
@@ -68,6 +72,7 @@ typedef struct {
     int login_state;
     char username[USER_NAME_LEN];
     char* m_post_args[4];
+    char* m_get_params;
 
     int m_content_length;
     int m_linger;

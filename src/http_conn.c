@@ -37,6 +37,7 @@ void init_http_request(int sockfd,int epollfd,http_request_t* request,int backup
     request->m_write_idx=0;
     request->m_iv_count=0;
     request->m_file_address=NULL;
+    request->m_get_params=NULL;
     memset(request->m_write_buf,'\0',WRITE_BUFFSIZE);
     memset(request->m_real_file,'\0',FILE_NAME_LEN);
     if(backup==0){//登录成功后需要保存状态
@@ -130,8 +131,13 @@ HTTP_CODE parse_request_line(http_request_t* request,char* text){
         request->m_url+=7;
         request->m_url = strchr(request->m_url,'\\');
     }
-    if(request->m_url[0]!=47) return BAD_REQUEST;       //此处需要研究，如果写成if(request->m_url[0]!='\\') 条件为真！！！
-    //puts(request->m_url);
+    if(request->m_url[0]!='/') return BAD_REQUEST;       // 此处为'/'，并非'\\'
+    if(strlen(request->m_url)>1) { //解析请求参数
+        request->m_get_params = strpbrk(request->m_url,"?");
+        if(request->m_get_params==NULL) return BAD_REQUEST;
+        *request->m_get_params++='\0';
+    }
+    puts(request->m_url);
     request->check_state = CHECK_STATE_HEADER; //有限状态机 
     return NO_REQUEST;
 }
@@ -229,10 +235,12 @@ HTTP_CODE do_request(http_request_t* request){
     if(S_ISDIR(request->m_file_stat.st_mode))//文件夹
         return BAD_REQUEST;
     if(request->m_method==GET){
-        int fd = open(request->m_real_file,O_RDONLY);
-        request->m_file_address = (char*)mmap(NULL,request->m_file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
-        close(fd);
-        return FILE_REQUEST;
+        if(strncasecmp(request->m_url+strlen(request->m_url)-5,".html",5)==0){//html类型资源
+            int fd = open(request->m_real_file,O_RDONLY);
+            request->m_file_address = (char*)mmap(NULL,request->m_file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
+            close(fd);
+            return HTML_REQUEST;
+        }
     }else if(request->m_method==POST){//POST请求处理
         char* post_msg = request->m_read_buf+request->m_start_line;
         if(strncasecmp(request->m_url+1,"login",5)==0){
@@ -285,6 +293,7 @@ int write_sock(http_request_t* request){
             perror("writev()");
             return -1;
         }
+        printf("%d bytes count,%d bytes sent!\n",bytes_to_send,temp);
         bytes_to_send -= temp;
         bytes_have_send+=temp;
         if(bytes_to_send<=bytes_have_send){
@@ -337,6 +346,10 @@ int add_content(http_request_t* request,const char* content){
     return add_response(request,"%s",content);
 }
 
+int add_content_type(http_request_t* request,CONTENT_TYPE type){
+    return add_response(request,"Content-Type: %s\r\n",(type==TEXT_HTML)?"text/html":"application/octet-stream");
+}
+
 void add_headers(http_request_t* request,int content_len){
     add_content_len(request,content_len);
     add_linger(request);
@@ -367,8 +380,9 @@ int process_write(http_request_t* request,HTTP_CODE code){
         add_headers(request,strlen(error_403_form));
         if(add_content(request,error_403_form)==-1) return -1;
         break;
-    case FILE_REQUEST:
+    case HTML_REQUEST:
         add_status_line(request,200,ok_200_titile);
+        add_content_type(request,TEXT_HTML);
         if(request->m_file_stat.st_size!=0){
             add_headers(request,request->m_file_stat.st_size);
             request->m_iv[0].iov_base = request->m_write_buf;
@@ -448,7 +462,7 @@ void process(void* arg){
             puts("BAD_REQUEST");
             return;
         }
-        puts(request->m_url);
+        //puts(request->m_url);
         if(process_write(request,code)==-1) {//根据得到的request做出响应
             puts("process write error");
             close_conn(request);
