@@ -2,8 +2,11 @@
 #include <string.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/sendfile.h>
 #include "epoll.h"
 #include "utils.h"
+
+#define SEND_BUFF_LEN 1024
 
 const char* ok_200_titile = "OK";
 const char* error_400_titile = "Bad Request";
@@ -134,8 +137,9 @@ HTTP_CODE parse_request_line(http_request_t* request,char* text){
     if(request->m_url[0]!='/') return BAD_REQUEST;       // 此处为'/'，并非'\\'
     if(strlen(request->m_url)>1) { //解析请求参数
         request->m_get_params = strpbrk(request->m_url,"?");
-        if(request->m_get_params==NULL) return BAD_REQUEST;
-        *request->m_get_params++='\0';
+        if(request->m_get_params!=NULL){ 
+            *request->m_get_params++='\0';
+        }
     }
     puts(request->m_url);
     request->check_state = CHECK_STATE_HEADER; //有限状态机 
@@ -149,6 +153,9 @@ HTTP_CODE parse_headers(http_request_t* request,char* text){
             return NO_REQUEST;
         }else if(strcmp(request->m_url,"/")==0){//如果不加主页路径，返回主页
             strcpy(request->m_url,"/index.html");
+            request->check_state=CHECK_STATE_CONTENT;
+            return NO_REQUEST;
+        }else if(request->m_method==GET){
             request->check_state=CHECK_STATE_CONTENT;
             return NO_REQUEST;
         }
@@ -240,6 +247,9 @@ HTTP_CODE do_request(http_request_t* request){
             request->m_file_address = (char*)mmap(NULL,request->m_file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
             close(fd);
             return HTML_REQUEST;
+        }else{
+            //m_file_address为NULL
+            return FILE_REQUEST;
         }
     }else if(request->m_method==POST){//POST请求处理
         char* post_msg = request->m_read_buf+request->m_start_line;
@@ -262,7 +272,15 @@ HTTP_CODE do_request(http_request_t* request){
             request->m_post_args[2] = NULL;
 
             return POST_REQUEST;
-        } 
+        }else if(strncasecmp(request->m_url+1,"upload",6)==0){
+            request->m_post_args[0] = "upload";
+            if(request->m_get_params==NULL) return BAD_REQUEST;
+            request->m_post_args[1] = request->m_get_params; //上传的文件名以及路径
+            sprintf(request->m_post_args[2],"%d",request->sock_fd);//客户端的fd
+            request->m_post_args[2] = NULL;
+
+            return POST_REQUEST;
+        }
     }
     return NO_REQUEST;
 }
@@ -282,36 +300,72 @@ int write_sock(http_request_t* request){
         init_http_request(request->sock_fd,epfd,request,request->login_state);
         return 0;
     }
-    while(1){
-        int temp = writev(request->sock_fd,request->m_iv,request->m_iv_count);
-        if(temp<=-1){
-            if(errno==EAGAIN){//写缓冲没有空间
-                modfd(epfd,request,EPOLLOUT);
-                return 0;
-            }
-            unmap(request);//取消内存映射
-            perror("writev()");
-            return -1;
+    if(request->m_iv[1].iov_base==NULL&&request->m_iv_count==2){//下载方式
+        while(1){
+            int temp = writev(request->sock_fd,request->m_iv,1);
+            if(temp<=-1){
+                if(errno==EAGAIN){//写缓冲没有空间
+                    modfd(epfd,request,EPOLLOUT);
+                    return 0;
+                }
+                perror("writev()");
+                return -1;
+            }//假定响应头可以发送成功
+            bytes_to_send-=temp;
+            bytes_have_send+=temp;
+            if(bytes_to_send<=bytes_have_send) break;
         }
-        printf("%d bytes count,%d bytes sent!\n",bytes_to_send,temp);
-        bytes_to_send -= temp;
-        bytes_have_send+=temp;
-        if(bytes_to_send<=bytes_have_send){
-            puts("http response ok");
-            unmap(request);
-            if(request->m_linger) {
-                //保存旧状态
-                init_http_request(request->sock_fd,epfd,request,request->login_state);
-                modfd(epfd,request,EPOLLIN);
-                return 0;
-            }else{//connection: 0
-                modfd(epfd,request,EPOLLIN);
+        int fd = open(request->m_real_file,O_RDONLY);
+        if(fd==-1) exitErr("open()");
+        off_t start = 0;
+        ssize_t send_num=0;
+        while(1){
+            ssize_t ret = sendfile(request->sock_fd,fd,&start,SEND_BUFF_LEN);
+            if(ret==-1){
+                if(errno==EAGAIN){
+                    modfd(epfd,request,EPOLLOUT);
+                    continue;
+                }
+            }
+            send_num+=ret;
+            if(send_num>=request->m_file_stat.st_size) break;
+        }
+        close(fd);
+        puts("sendfile ok!");
+        init_http_request(request->sock_fd,epfd,request,request->login_state);
+        modfd(epfd,request,EPOLLIN);
+        return 0;
+    }else{//text/html
+        while(1){
+            int temp = writev(request->sock_fd,request->m_iv,request->m_iv_count);
+            if(temp<=-1){
+                if(errno==EAGAIN){//写缓冲没有空间
+                    modfd(epfd,request,EPOLLOUT);
+                    return 0;
+                }
+                unmap(request);//取消内存映射
+                perror("writev()");
                 return -1;
             }
+            printf("%d bytes count,%d bytes sent!\n",bytes_to_send,temp);
+            bytes_to_send -= temp;
+            bytes_have_send+=temp;
+            if(bytes_to_send<=bytes_have_send){
+                puts("http response ok");
+                unmap(request);
+                if(request->m_linger) {
+                    //保存旧状态
+                    init_http_request(request->sock_fd,epfd,request,request->login_state);
+                    modfd(epfd,request,EPOLLIN);
+                    return 0;
+                }else{//connection: 0
+                    modfd(epfd,request,EPOLLIN);
+                    return -1;
+                }
+            }
+
         }
-
     }
-
 }
 
 int add_response(http_request_t* request,const char* format,...){
@@ -396,12 +450,30 @@ int process_write(http_request_t* request,HTTP_CODE code){
             add_headers(request,strlen(ok_string));
             if(add_content(request,ok_string)==-1) return -1;
         }
+        break;
+    case FILE_REQUEST:
+        puts("download request");
+        if(request->login_state==0) return process_write(request,FORBIDDEN_REQUEST);
+        add_status_line(request,200,ok_200_titile);
+        add_content_type(request,APPLICATION_OCTET_STREAM);
+        if(request->m_file_stat.st_size!=0){
+            add_headers(request,request->m_file_stat.st_size);
+            request->m_iv[0].iov_base = request->m_write_buf;
+            request->m_iv[0].iov_len = request->m_write_idx;
+            request->m_iv[1].iov_base = request->m_file_address;
+            request->m_iv[1].iov_len = request->m_file_stat.st_size;
+            request->m_iv_count = 2;
+            return 0;
+        }else{
+            //空文件的处理
+        }
+        break;
     case POST_REQUEST://login采用父子进程的方法，获取用户数据采用函数直接调用的方式,存放在doc里的为空文件
         if(strncasecmp(request->m_url+1,"login",5)==0){//登录
             pid_t pid = fork();
             switch(pid){
             case -1:
-                exitErr("func");
+                exitErr("fork()");
                 break;
             case 0:
                 execvp(request->m_real_file,request->m_post_args);
@@ -435,8 +507,23 @@ int process_write(http_request_t* request,HTTP_CODE code){
                     if(add_content(request,user_info)==-1) return -1;
                 }
             }
-        }else {
-
+        }else if(strncasecmp(request->m_url+1,"upload",6)==0){
+            puts("process upload request");
+            if(request->login_state==0){//未登录禁止上传
+                return process_write(request,FORBIDDEN_REQUEST);
+            }
+            pid_t pid = fork();
+            switch(pid){
+            case -1:
+                exitErr("fork()");
+                break;
+            case 0:
+                execvp(request->m_real_file,request->m_post_args);
+                puts("execvp err");
+                break;
+            default://父进程
+                wait(&waitid);
+            }
         }
         break;
     default:
