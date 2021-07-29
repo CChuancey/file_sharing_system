@@ -71,7 +71,7 @@ typedef struct {
 
     int login_state;
     char username[USER_NAME_LEN];
-    char* m_post_args[4];
+    char* m_post_args[10];
     char* m_get_params;
 
     int m_content_length;

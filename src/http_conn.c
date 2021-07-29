@@ -5,6 +5,8 @@
 #include <sys/sendfile.h>
 #include "epoll.h"
 #include "utils.h"
+#include <unistd.h>
+#include <stdlib.h>
 
 #define SEND_BUFF_LEN 1024
 
@@ -57,7 +59,7 @@ void close_conn(http_request_t* request){
     }
 }
 
-int read_buf(http_request_t* request){
+int read_buf(http_request_t* request){//读请求头
     if(request->m_read_idx>=READ_BUFFSIZE){
         //缓冲区不足，关闭连接,待优化-------------：写成循环缓冲
         fprintf(stderr,"buffer size is not enough!\n");
@@ -65,17 +67,13 @@ int read_buf(http_request_t* request){
         return -1;
     }
     while(1){
-        int bytes_read = recv(request->sock_fd,request->m_read_buf+request->m_read_idx,READ_BUFFSIZE-request->m_read_idx,0);
+        int bytes_read = getline_from_socket(request->sock_fd,request->m_read_buf+request->m_read_idx);
         if(bytes_read==-1){
-            if(errno==EAGAIN||errno==EWOULDBLOCK){
-                break;
-            }
-            //读缓冲出错！
             close_conn(request);
-            return -1;
-        }else if(bytes_read==0){
+            removefd(epfd,request);
             return -1;
         }
+        if(bytes_read==1&&request->m_read_buf[request->m_read_idx]=='\n') break;//读到空白行退出,注意每行的第一个元素下标为m_read_idx
         request->m_read_idx+=bytes_read;
     }
     return 0;
@@ -88,18 +86,11 @@ char* get_line(http_request_t* request){
 
 //从状态机
 LINE_STATUS parse_line(http_request_t* request){
+    if(request->m_read_buf[request->m_check_idx]=='\n') return LINE_OK;
     for(;request->m_check_idx<request->m_read_idx;++(request->m_check_idx)){
         char tmp = request->m_read_buf[request->m_check_idx];
-        if(tmp=='\r'){
-            if(request->m_read_idx+1==request->m_read_idx) return LINE_OK;
-            else if(request->m_read_buf[request->m_check_idx+1]=='\n'){
-                request->m_read_buf[request->m_check_idx++]='\0';
-                request->m_read_buf[request->m_check_idx++]='\0';
-                return LINE_OK;
-            }
-        }else if(tmp=='\n'){
-            if(request->m_check_idx>1&&request->m_read_buf[request->m_check_idx-1]=='\r'){
-                request->m_read_buf[request->m_check_idx-1]='\0';
+        if(tmp=='\n'){
+            if(request->m_check_idx>1){
                 request->m_read_buf[request->m_check_idx++]='\0';
                 return LINE_OK;
             }
@@ -141,25 +132,19 @@ HTTP_CODE parse_request_line(http_request_t* request,char* text){
             *request->m_get_params++='\0';
         }
     }
-    puts(request->m_url);
+    //puts(request->m_url);
     request->check_state = CHECK_STATE_HEADER; //有限状态机 
     return NO_REQUEST;
 }
 
 HTTP_CODE parse_headers(http_request_t* request,char* text){
-    if(text[0]=='\0'){
-        if(request->m_content_length!=0){
-            request->check_state=CHECK_STATE_CONTENT;
-            return NO_REQUEST;
-        }else if(strcmp(request->m_url,"/")==0){//如果不加主页路径，返回主页
+    if(strcasecmp(text,"\n")==0||text[0]=='\0'){
+        puts("read headers end");
+        if(strcmp(request->m_url,"/")==0){//如果不加主页路径，返回主页
             strcpy(request->m_url,"/index.html");
-            request->check_state=CHECK_STATE_CONTENT;
-            return NO_REQUEST;
-        }else if(request->m_method==GET){
-            request->check_state=CHECK_STATE_CONTENT;
-            return NO_REQUEST;
         }
-        return GET_REQUEST;
+        request->check_state=CHECK_STATE_CONTENT;
+        return NO_REQUEST;
     }else if(strncasecmp(text,"Connection:",11)==0){
         text+=11;
         text+=strspn(text," \t");
@@ -183,14 +168,22 @@ HTTP_CODE parse_headers(http_request_t* request,char* text){
 }
 
 HTTP_CODE parse_content(http_request_t* request,char* text){
-    if(request->m_read_idx>=(request->m_content_length+request->m_check_idx)){
-        text[request->m_content_length]='\0';
-        if(request->m_method==POST){//仅为POST请求处理下form data
-            request->m_form_data = request->m_read_buf+request->m_start_line;
-            return POST_REQUEST;
-        }else return GET_REQUEST;
+//    puts(text);
+//    printf("read_idx: %d,content_len: %d,check_idx:%d\n",request->m_read_idx,request->m_content_length,request->m_check_idx);
+//    if(request->m_read_idx>=(request->m_content_length+request->m_check_idx)){
+//        puts("ok!!!!!!!!!!!!");
+//        text[request->m_content_length]='\0';
+    if(request->m_content_length!=0){
+        if(read_buf(request)==-1){
+            return BAD_REQUEST;
+        }
     }
-    return NO_REQUEST;
+    if(request->m_method==POST){//仅为POST请求处理下form data
+        request->m_form_data = request->m_read_buf+request->m_start_line;
+        return POST_REQUEST;
+    }else return GET_REQUEST;
+//    }
+//    return NO_REQUEST;
 }
 
 HTTP_CODE process_read(http_request_t* request){
@@ -198,6 +191,7 @@ HTTP_CODE process_read(http_request_t* request){
     HTTP_CODE http_code = NO_REQUEST;
     while(((request->check_state==CHECK_STATE_CONTENT)&&(line_status==LINE_OK))||(line_status=parse_line(request))==LINE_OK){
         char* text = get_line(request);
+        //puts(text);
         request->m_start_line = request->m_check_idx;
 
         switch(request->check_state){
@@ -214,8 +208,9 @@ HTTP_CODE process_read(http_request_t* request){
         case CHECK_STATE_CONTENT:
             //检查请求体是否被完整
             http_code = parse_content(request,text);
-            //puts("check state content");
+            puts("check state content");
             if(http_code==GET_REQUEST||http_code==POST_REQUEST) return do_request(request);
+            else if(http_code==BAD_REQUEST) return BAD_REQUEST;
             line_status=LINE_OPEN;
             break;
 
@@ -273,12 +268,16 @@ HTTP_CODE do_request(http_request_t* request){
 
             return POST_REQUEST;
         }else if(strncasecmp(request->m_url+1,"upload",6)==0){
+            puts("process upload do request");
             request->m_post_args[0] = "upload";
-            if(request->m_get_params==NULL) return BAD_REQUEST;
-            request->m_post_args[1] = request->m_get_params; //上传的文件名以及路径
-            sprintf(request->m_post_args[2],"%d",request->sock_fd);//客户端的fd
-            request->m_post_args[2] = NULL;
-
+            if(post_msg==NULL) return BAD_REQUEST;
+            request->m_post_args[1] = post_msg; //上传的文件名以及路径
+            request->m_post_args[2] = (char*)malloc(sizeof(char)*10); //记得释放！！
+            sprintf(request->m_post_args[2],"%d",request->sock_fd);
+            //未登录的调试
+            if(strlen(request->username)==0) request->m_post_args[3] = ".";
+            else request->m_post_args[3] = request->username;
+            request->m_post_args[4] = NULL;
             return POST_REQUEST;
         }
     }
@@ -469,6 +468,7 @@ int process_write(http_request_t* request,HTTP_CODE code){
         }
         break;
     case POST_REQUEST://login采用父子进程的方法，获取用户数据采用函数直接调用的方式,存放在doc里的为空文件
+        puts("post request process write");
         if(strncasecmp(request->m_url+1,"login",5)==0){//登录
             pid_t pid = fork();
             switch(pid){
@@ -508,8 +508,16 @@ int process_write(http_request_t* request,HTTP_CODE code){
                 }
             }
         }else if(strncasecmp(request->m_url+1,"upload",6)==0){
-            puts("process upload request");
+            puts("process upload write");
             if(request->login_state==0){//未登录禁止上传
+                while(1){
+                    int ret = recv(request->sock_fd,request->m_read_buf,READ_BUFFSIZE,0);
+                    if(ret==0) break;
+                    else if(ret==-1){
+                        if(errno==EAGAIN) break;
+                        exitErr("recv");
+                    }
+                }
                 return process_write(request,FORBIDDEN_REQUEST);
             }
             pid_t pid = fork();
@@ -523,6 +531,8 @@ int process_write(http_request_t* request,HTTP_CODE code){
                 break;
             default://父进程
                 wait(&waitid);
+                free(request->m_post_args[2]);//作为缓冲区，存储的fd
+                return 0;
             }
         }
         break;
@@ -540,7 +550,7 @@ void process(void* arg){
     puts("thread is reading data");
     HTTP_CODE code = NO_REQUEST;
     if(read_buf(request)==0){ //读进缓冲区
-        puts(request->m_read_buf);
+        printf("%s",request->m_read_buf);
         code = process_read(request);
         //printf("Host:%s\nConnection:%d\nConten_length:%d\nContent-Type:%s\n\nContent:%s\n",
         //       request->m_host,request->m_linger,request->m_content_length,request->m_content_type,request->m_read_buf+request->m_start_line);
@@ -549,7 +559,7 @@ void process(void* arg){
             puts("BAD_REQUEST");
             return;
         }
-        //puts(request->m_url);
+        //if(code==POST_REQUEST)  puts(request->m_url);
         if(process_write(request,code)==-1) {//根据得到的request做出响应
             puts("process write error");
             close_conn(request);

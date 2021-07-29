@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <time.h>
+#include "http_conn.h"
 
 #define exitErr(func) {perror(func);exit(EXIT_FAILURE);}
 #define PATH_LEN 300
@@ -110,5 +111,28 @@ char* get_json_str(const char* url){
     char* ret = cJSON_Print(res);
     cJSON_Delete(res);
     return ret;
+}
+
+int getline_from_socket(int sockfd,char* buf){
+    int i=0;
+    char c='\0';
+    while(i<READ_BUFFSIZE&&c!='\n'){
+        int n=recv(sockfd,&c,1,0);
+        if(n>0){
+            if(c=='\r'){//将请求头的\r\n替换为\n读进缓冲区
+                n=recv(sockfd,&c,1,MSG_PEEK); //确保为\r\n PEEK保证只读不取
+                if(n>0&&c=='\n')
+                    recv(sockfd,&c,1,0);
+                else
+                    c='\n';
+            }
+            buf[i++]=c;
+        }else {//包括读错
+            c='\n';
+        }
+    }
+    if(i==READ_BUFFSIZE) return -1;//一行过长，请求错误
+    buf[i]='\0';
+    return i;
 }
 
