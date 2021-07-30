@@ -14,5 +14,5 @@
 
 char* get_user_info(char*);
 char* get_json_str(const char* url);
-int getline_from_socket(int,char*);
+int getline_from_socket(int,char*,int);
 #endif

@@ -67,8 +67,21 @@ int read_buf(http_request_t* request){//读请求头
         return -1;
     }
     while(1){
-        int bytes_read = getline_from_socket(request->sock_fd,request->m_read_buf+request->m_read_idx);
+        int bytes_read = getline_from_socket(request->sock_fd,request->m_read_buf+request->m_read_idx,READ_BUFFSIZE-request->m_read_idx);
         if(bytes_read==-1){
+            close_conn(request);
+            removefd(epfd,request);
+            return -1;
+        }else if(bytes_read>=READ_BUFFSIZE||request->m_read_idx+bytes_read>=READ_BUFFSIZE){//一行的请求过长
+            //先读完，再关闭
+            while(1){
+                int ret = recv(request->sock_fd,request->m_read_buf,READ_BUFFSIZE,0);
+                if(ret==0) break;
+                else if(ret==-1){
+                    if(errno==EAGAIN||errno==EWOULDBLOCK) break;
+                    exitErr("recv");
+                }
+            }
             close_conn(request);
             removefd(epfd,request);
             return -1;
@@ -509,7 +522,7 @@ int process_write(http_request_t* request,HTTP_CODE code){
             }
         }else if(strncasecmp(request->m_url+1,"upload",6)==0){
             puts("process upload write");
-            if(request->login_state==0){//未登录禁止上传
+            /*if(request->login_state==0){//未登录禁止上传
                 while(1){
                     int ret = recv(request->sock_fd,request->m_read_buf,READ_BUFFSIZE,0);
                     if(ret==0) break;
@@ -519,7 +532,7 @@ int process_write(http_request_t* request,HTTP_CODE code){
                     }
                 }
                 return process_write(request,FORBIDDEN_REQUEST);
-            }
+            }*/
             pid_t pid = fork();
             switch(pid){
             case -1:
@@ -532,7 +545,15 @@ int process_write(http_request_t* request,HTTP_CODE code){
             default://父进程
                 wait(&waitid);
                 free(request->m_post_args[2]);//作为缓冲区，存储的fd
-                return 0;
+                if(waitid>>8==0){
+                    add_status_line(request,200,ok_200_titile);
+                    add_headers(request,strlen("login successfully!"));
+                    if(add_content(request,"login successfully!")==-1) return -1;
+                }else{
+                    add_status_line(request,500,error_500_titile);
+                    add_headers(request,strlen(error_500_form));
+                    if(add_content(request,error_500_form)==-1) return -1;
+                }
             }
         }
         break;
@@ -550,6 +571,7 @@ void process(void* arg){
     puts("thread is reading data");
     HTTP_CODE code = NO_REQUEST;
     if(read_buf(request)==0){ //读进缓冲区
+        puts("read buf ok");
         printf("%s",request->m_read_buf);
         code = process_read(request);
         //printf("Host:%s\nConnection:%d\nConten_length:%d\nContent-Type:%s\n\nContent:%s\n",

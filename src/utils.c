@@ -113,10 +113,10 @@ char* get_json_str(const char* url){
     return ret;
 }
 
-int getline_from_socket(int sockfd,char* buf){
+int getline_from_socket(int sockfd,char* buf,int remain){
     int i=0;
     char c='\0';
-    while(i<READ_BUFFSIZE&&c!='\n'){
+    while(i<remain&&c!='\n'){
         int n=recv(sockfd,&c,1,0);
         if(n>0){
             if(c=='\r'){//将请求头的\r\n替换为\n读进缓冲区
@@ -131,7 +131,7 @@ int getline_from_socket(int sockfd,char* buf){
             c='\n';
         }
     }
-    if(i==READ_BUFFSIZE) return -1;//一行过长，请求错误
+    if(i==remain) return -1;//一行过长，请求错误
     buf[i]='\0';
     return i;
 }
