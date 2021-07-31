@@ -273,7 +273,7 @@ HTTP_CODE do_request(http_request_t* request){
             request->m_post_args[3] = NULL;
             //puts("processed post_args");
             return POST_REQUEST;
-        }else if(strncasecmp(request->m_url+1,"get_user_info",13)==0){
+        }else if(strncasecmp(request->m_url+1,"get_user_info",13)==0){//未采用fork exec wait，直接调用函数
             request->m_post_args[0] = "get_user_info";
             size_t len = strspn(post_msg,"username=");
             request->m_post_args[1] = post_msg+len;
@@ -291,6 +291,13 @@ HTTP_CODE do_request(http_request_t* request){
             if(strlen(request->username)==0) request->m_post_args[3] = ".";
             else request->m_post_args[3] = request->username;
             request->m_post_args[4] = NULL;
+            return POST_REQUEST;
+        }else if(strncasecmp(request->m_url+1,"share",5)==0){
+            puts("process share do request");
+            request->m_post_args[0] = "share";
+            request->m_post_args[1] = (char*)malloc(sizeof(char)*1024);//用来保存url,以及指令，在这里处理会有内存泄漏
+            memcpy(request->m_post_args[1],post_msg,strlen(post_msg));
+            request->m_post_args[2] = NULL;
             return POST_REQUEST;
         }
     }
@@ -554,6 +561,18 @@ int process_write(http_request_t* request,HTTP_CODE code){
                     add_headers(request,strlen(error_500_form));
                     if(add_content(request,error_500_form)==-1) return -1;
                 }
+            }
+        }else if(strncasecmp(request->m_url+1,"share",5)==0){
+            puts("process share write");
+            if(request->login_state==0){//未登录的调试
+                sprintf(request->username,"%s",".");
+            }
+            int ret = share_process(request->username,request->m_post_args[1]);
+            if(ret==-1) process_write(request,FORBIDDEN_REQUEST);
+            else {
+                add_status_line(request,200,ok_200_titile);
+                add_headers(request,strlen("share file ok!"));
+                if(add_content(request,"share file ok!")==-1) return -1;
             }
         }
         break;

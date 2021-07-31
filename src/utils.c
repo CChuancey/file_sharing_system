@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <time.h>
 #include "http_conn.h"
+#include <errno.h>
 
 #define exitErr(func) {perror(func);exit(EXIT_FAILURE);}
 #define PATH_LEN 300
@@ -50,7 +51,7 @@ char* get_user_info(char* username){
     }
     char* ret = (char*)malloc(sizeof(char)*SQL_STR_LEN);//限制结果集为1024
     sprintf(ret,"total=%s&used=%s",row[3],row[4]);
-    
+
     mysql_free_result(res);
     mysql_close(mysql);
     mysql_library_end();
@@ -134,5 +135,93 @@ int getline_from_socket(int sockfd,char* buf,int remain){
     if(i==remain) return -1;//一行过长，请求错误
     buf[i]='\0';
     return i;
+}
+//需要自己释放空间                                                                  
+char* get_formated_time_str(){
+    time_t t = time(NULL);
+    struct tm* buf = localtime(&t);
+    char* res = (char*)malloc(sizeof(char)*20);
+    sprintf(res,"%d-%d-%d %d:%d:%d",buf->tm_year+1900,buf->tm_mon+1,buf->tm_mday,
+            buf->tm_hour+1,buf->tm_min,buf->tm_sec);
+    return res;
+}
+
+int share_process(char* username,char* parms){
+    //先处理参数
+    char* bk = (char*)malloc(strlen(parms));
+    memcpy(bk,parms,strlen(parms));
+    size_t len = strspn(bk,"url=");
+    char* url = bk+len;
+    char* cmd = strpbrk(url,"&");
+    *cmd++='\0';
+    cmd+=4;
+    char* end = strpbrk(cmd,"\r\n");
+    *end++='\0';
+    char sql_str[SQL_STR_LEN]; 
+
+    MYSQL* mysql=NULL;
+    if(connect_to_sql(&mysql)==-1) return -1;//得到空查询
+    if(mysql==NULL) {
+        fprintf(stderr,"connect_to_sql failed\n");
+        return -1;
+    }
+    char prepath[PATH_LEN];
+    char newpath[PATH_LEN];
+
+    //先尝试建立各个用户的共享文件夹,暂时只支持各个用户根目录共享文件
+    sprintf(prepath,"../doc/%s",username);
+    sprintf(newpath,"../doc/shared_folder/%s",username);
+    int ret = mkdir(prepath,0600);
+    if(ret==-1&&errno!=EEXIST){
+        perror("mkdir");
+        return -1;
+    }
+    ret = mkdir(newpath,0600);
+    if(ret==-1&&errno!=EEXIST){
+        perror("mkdir");
+        return -1;
+    }
+
+    sprintf(prepath,"../doc/%s%s",username,url);
+    sprintf(newpath,"../doc/shared_folder/%s%s",username,url);
+
+    if(strncasecmp(cmd,"add",3)==0){//增加共享
+        char* cur_time = get_formated_time_str();
+        sprintf(sql_str,"INSERT INTO shared VALUES('%s','%s','%s');",username,url,cur_time);
+        free(cur_time);//keep in mind
+        if(mysql_real_query(mysql,sql_str,strlen(sql_str))!=0){
+            fprintf(stderr,"mysql query failed:%s\n",mysql_error(mysql));
+            return -1;
+        }
+        if(mysql_affected_rows(mysql)>0){
+            puts("insert sql ok!");
+        }else {
+            fprintf(stderr,"mysql insert rows failed:%s\n",mysql_error(mysql));
+            return -1;
+        }
+        if(link(prepath,newpath)==-1) {
+            perror("link()");
+            return -1;
+        }
+    }else if(strncasecmp(cmd,"del",3)==0){//取消共享
+        sprintf(sql_str,"DELETE FROM shared WHERE url='%s' AND username = '%s';",url,username);
+        if(mysql_real_query(mysql,sql_str,strlen(sql_str))!=0){
+            fprintf(stderr,"mysql query failed:%s\n",mysql_error(mysql));
+            return -1;
+        }
+        if(mysql_affected_rows(mysql)>0){
+            puts("delete segment ok!");
+        }else {
+            fprintf(stderr,"mysql del rows failed:%s\n",mysql_error(mysql));
+            return -1;
+        }
+        if(unlink(newpath)==-1) {
+            perror("unlink()");
+            return -1;
+        }
+    }
+
+    free(bk);
+    return 0;
 }
 
