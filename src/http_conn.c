@@ -7,6 +7,7 @@
 #include "utils.h"
 #include <unistd.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #define SEND_BUFF_LEN 1024
 
@@ -255,6 +256,10 @@ HTTP_CODE do_request(http_request_t* request){
             request->m_file_address = (char*)mmap(NULL,request->m_file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
             close(fd);
             return HTML_REQUEST;
+        }else if(strncasecmp(request->m_url+1,"get_file_list",13)==0){
+            if(strncasecmp(request->m_get_params,"url=",4)!=0) return BAD_REQUEST;
+            else request->m_get_params+=4;
+            return HTML_REQUEST;        
         }else{
             //m_file_address为NULL
             return FILE_REQUEST;
@@ -464,6 +469,18 @@ int process_write(http_request_t* request,HTTP_CODE code){
             request->m_iv[1].iov_len = request->m_file_stat.st_size;
             request->m_iv_count=2;
             return 0;
+        }else if(strncasecmp(request->m_url+1,"get_file_list",13)==0){
+            char path[PATH_NAME_LEN];
+            if(request->login_state==0) {//未登录的调试
+                memcpy(request->username,".",strlen("."));
+            }
+            sprintf(path,"../doc/%s%s",request->username,request->m_get_params);
+            char* msg = get_json_str(path);
+            assert(msg!=NULL);
+            add_headers(request,strlen(msg));
+            printf("json len :%d\n",strlen(msg));
+            if(add_content(request,msg)==-1) return -1;
+            break;
         }else{//根据请求的url判定是否为文件，且文件存在为空文件
             const char* ok_string = "<html><body></body></html>";
             add_headers(request,strlen(ok_string));

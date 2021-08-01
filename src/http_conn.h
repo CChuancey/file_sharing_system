@@ -14,9 +14,10 @@
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define exitErr(func) {perror(func);exit(EXIT_FAILURE);}
 #define READ_BUFFSIZE 2048
-#define WRITE_BUFFSIZE 1024
+#define WRITE_BUFFSIZE 2048
 #define FILE_NAME_LEN 1024
 #define USER_NAME_LEN 1024
+#define PATH_NAME_LEN 4096
 
 extern const char* ok_200_titile;
 extern const char* error_400_titile;
