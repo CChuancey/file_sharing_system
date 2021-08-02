@@ -79,10 +79,10 @@ char* get_json_str(const char* url){
     while((item=readdir(dir))!=NULL){
         char filePath[PATH_LEN*2];
         sprintf(filePath,"%s/%s",url,item->d_name);
-        if(stat(filePath,&stat_buf)==-1) exitErr("stat()");
         if(strcasecmp(".",item->d_name)==0||strcasecmp("..",item->d_name)==0){
             continue;
         }
+        if(stat(filePath,&stat_buf)==-1) exitErr("stat()");
         cJSON* cur = cJSON_CreateObject();
         if(cur==NULL) return NULL;
         cJSON_AddItemToArray(file_arry,cur);

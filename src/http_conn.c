@@ -86,7 +86,7 @@ int read_buf(http_request_t* request){//读请求头
             close_conn(request);
             removefd(epfd,request);
             return -1;
-        }
+        }else if(bytes_read==0) break;
         if(bytes_read==1&&request->m_read_buf[request->m_read_idx]=='\n') break;//读到空白行退出,注意每行的第一个元素下标为m_read_idx
         request->m_read_idx+=bytes_read;
     }
@@ -187,11 +187,14 @@ HTTP_CODE parse_content(http_request_t* request,char* text){
 //    if(request->m_read_idx>=(request->m_content_length+request->m_check_idx)){
 //        puts("ok!!!!!!!!!!!!");
 //        text[request->m_content_length]='\0';
+    puts("parse content");
     if(request->m_content_length!=0){
         if(read_buf(request)==-1){
+            puts("read buf error");
             return BAD_REQUEST;
         }
     }
+    puts("read buf end");
     if(request->m_method==POST){//仅为POST请求处理下form data
         request->m_form_data = request->m_read_buf+request->m_start_line;
         return POST_REQUEST;
@@ -470,15 +473,17 @@ int process_write(http_request_t* request,HTTP_CODE code){
             request->m_iv_count=2;
             return 0;
         }else if(strncasecmp(request->m_url+1,"get_file_list",13)==0){
+            puts("process get file list write");
             char path[PATH_NAME_LEN];
             if(request->login_state==0) {//未登录的调试
                 memcpy(request->username,".",strlen("."));
             }
             sprintf(path,"../doc/%s%s",request->username,request->m_get_params);
             char* msg = get_json_str(path);
+            puts(path);
             assert(msg!=NULL);
             add_headers(request,strlen(msg));
-            printf("json len :%d\n",strlen(msg));
+            printf("json len :%ld\n",strlen(msg));
             if(add_content(request,msg)==-1) return -1;
             break;
         }else{//根据请求的url判定是否为文件，且文件存在为空文件
@@ -522,6 +527,22 @@ int process_write(http_request_t* request,HTTP_CODE code){
                     //正常登录,正常应该加302以及setcookie，这里自行设计cs架构，就不涉及了
                     request->login_state=1;
                     memcpy(request->username,request->m_post_args[1],strlen(request->m_post_args[1]));
+                    char path[PATH_NAME_LEN];
+                    sprintf(path,"../doc/%s",request->username);
+                    struct stat dir_stat;
+                    if(stat("../doc",&dir_stat)==-1){
+                        perror("stat()");
+                        return -1;
+                    }
+                    mode_t old_mode = umask(0);
+                    int ret = mkdir(path,dir_stat.st_mode);
+                    umask(old_mode);
+                    if(ret==-1){
+                        if(errno!=EEXIST) {
+                            perror("mkdir()");
+                            return -1;
+                        }
+                    }
                     add_status_line(request,200,ok_200_titile);
                     add_headers(request,strlen("login successfully!"));
                     if(add_content(request,"login successfully!")==-1) return -1;
