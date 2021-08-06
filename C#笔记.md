@@ -1031,11 +1031,71 @@ File.AppendAllText(url, "hahahah");
   }
   ```
   
+  #### 文件夹相关
+  
+  ```c#
+  string path = ".";
+  string subPath = path + "/testdir";
+  if (!Directory.Exists(subPath))//文件夹不存在
+  {
+      Directory.CreateDirectory(subPath);//创建该文件夹
+  }
+  ```
+  
   
 
+## Socket通信
 
+> C#中封装好了相关的工具类，图TcpClient、UDPClient等
 
+### 创建socket的方法
 
+- Socket构造函数
+- 当我们编写基于TCP和UDP的应用程序时，既可以使用对套接字进行进一步封装的**TcpListener**类、**TCPClient**类和**UdpClient**类，也可以直接使用**Socket**类来实现，如果没有特殊需求应该使用进一步封装过的类，由于**Socket类是他们实现的基础**。
+
+### 使用网络流（NetworkStream）读写socket
+
+- 创建NetworkStream对象
+
+  ```c#
+  /**------------------通过TcpClient获取网络流--------------**/
+  TcpClient client = new TcpClient();
+  client.Connect("www.baidu.com", 8099);
+  NetworkStream nStream = client.GetStream();
+  
+  /**------------------通过socket获取网络流--------------**/
+  NetworkStream myNetworkStream = new NetworkStream(mySocket);     
+  ```
+
+- 读取数据
+
+  ```c#
+  //是否有数据可读
+  if (nStream.CanRead)
+  {
+      //接受数据的缓冲区
+      byte[] myReadBuffer = new byte[1024];
+      StringBuilder completeMessage = new StringBuilder();
+      int numberOfBytesRead = 0;
+      //准备接收的信息也有可能大于1024所以使用循环
+      do
+      {
+          numberOfBytesRead = nStream.Read(myReadBuffer,0,myReadBuffer.Length);
+          completeMessage.AppendFormat("{0}",Encoding.UTF8.GetString(myReadBuffer,0,numberOfBytesRead);
+      }while(nStream.DataAvailable);
+      Console.WriteLine("接受的信息为："+completeMessage);
+   }
+  else
+  {
+       Console.WriteLine("当前没有可供读取的数据。");
+  }
+  ```
+
+  
+
+---
+
+注意：当使用NetworkStream输入输出时，不能同时输入输出，并且使用BufferedStream读取网络流时，缓冲区的大小即byte数组的大小不要小于4k，否则底层会发生阻塞！
 
 # 4、特性
 
