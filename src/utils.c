@@ -13,6 +13,7 @@
 
 #define exitErr(func) {perror(func);exit(EXIT_FAILURE);}
 #define PATH_LEN 300
+char* get_directory_from_url(char* url);//要free掉返回值
 
 int connect_to_sql(MYSQL** mysql){
     *mysql = mysql_init(NULL);
@@ -168,26 +169,32 @@ int share_process(char* username,char* parms){
     char prepath[PATH_LEN];
     char newpath[PATH_LEN];
 
-    //先尝试建立各个用户的共享文件夹,暂时只支持各个用户根目录共享文件
-    sprintf(prepath,"../doc/%s",username);
-    sprintf(newpath,"../doc/shared_folder/%s",username);
-    int ret = mkdir(prepath,0600);
-    if(ret==-1&&errno!=EEXIST){
-        perror("mkdir");
-        return -1;
-    }
-    ret = mkdir(newpath,0600);
-    if(ret==-1&&errno!=EEXIST){
-        perror("mkdir");
-        return -1;
-    }
-
     sprintf(prepath,"../doc/%s%s",username,url);
     sprintf(newpath,"../doc/shared_folder/%s%s",username,url);
+    struct stat stat_buf;
+    if(stat(".",&stat_buf)==-1){
+        perror("stat()");
+    }
+
+    char* pre_dir = get_directory_from_url(prepath);
+    char* new_dir = get_directory_from_url(newpath);
+
+    mode_t old = umask(0);
+    int ret = mkdir(pre_dir,stat_buf.st_mode);
+    if(ret==-1&&errno!=EEXIST){
+        perror("mkdir");
+        return -1;
+    }
+    ret = mkdir(new_dir,stat_buf.st_mode);
+    if(ret==-1&&errno!=EEXIST){
+        perror("mkdir");
+        return -1;
+    }
+    umask(old);
 
     if(strncasecmp(cmd,"add",3)==0){//增加共享
         char* cur_time = get_formated_time_str();
-        sprintf(sql_str,"INSERT INTO shared VALUES('%s','%s','%s');",username,url,cur_time);
+        sprintf(sql_str,"INSERT INTO shared VALUES('%s','%s%s','%s');",username,username,url,cur_time);
         free(cur_time);//keep in mind
         if(mysql_real_query(mysql,sql_str,strlen(sql_str))!=0){
             fprintf(stderr,"mysql query failed:%s\n",mysql_error(mysql));
@@ -204,7 +211,7 @@ int share_process(char* username,char* parms){
             return -1;
         }
     }else if(strncasecmp(cmd,"del",3)==0){//取消共享
-        sprintf(sql_str,"DELETE FROM shared WHERE url='%s' AND username = '%s';",url,username);
+        sprintf(sql_str,"DELETE FROM shared WHERE url='%s%s' AND username = '%s';",username,url,username);
         if(mysql_real_query(mysql,sql_str,strlen(sql_str))!=0){
             fprintf(stderr,"mysql query failed:%s\n",mysql_error(mysql));
             return -1;
@@ -223,5 +230,14 @@ int share_process(char* username,char* parms){
 
     free(bk);
     return 0;
+}
+
+char* get_directory_from_url(char* url){//要free掉返回值
+   int len = strlen(url);
+   len--;
+   while(url[len]!='/') len--;
+   char* res = (char*)malloc(len+1);
+   memcpy(res,url,len+1);
+   return res;
 }
 

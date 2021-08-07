@@ -250,9 +250,10 @@ HTTP_CODE do_request(http_request_t* request){
     //puts(request->m_real_file);
     //puts(request->m_url);
     if(stat(request->m_real_file,&request->m_file_stat)<0) return NO_RESOURCE;
-    if(!(request->m_file_stat.st_mode&S_IROTH)) return FORBIDDEN_REQUEST; //others没有读权限
+    if(!(request->m_file_stat.st_mode&S_IRUSR)) return FORBIDDEN_REQUEST; //没有读权限
     if(S_ISDIR(request->m_file_stat.st_mode))//文件夹
         return BAD_REQUEST;
+    puts(request->m_url);
     if(request->m_method==GET){
         if(strncasecmp(request->m_url+strlen(request->m_url)-5,".html",5)==0){//html类型资源
             int fd = open(request->m_real_file,O_RDONLY);
@@ -353,6 +354,7 @@ int write_sock(http_request_t* request){
                     modfd(epfd,request,EPOLLOUT);
                     continue;
                 }
+                perror("sendfile");
             }
             send_num+=ret;
             if(send_num>=request->m_file_stat.st_size) break;
@@ -494,10 +496,10 @@ int process_write(http_request_t* request,HTTP_CODE code){
         break;
     case FILE_REQUEST:
         puts("download request");
-        if(request->login_state==0) return process_write(request,FORBIDDEN_REQUEST);
+        //if(request->login_state==0) return process_write(request,FORBIDDEN_REQUEST);
         add_status_line(request,200,ok_200_titile);
         add_content_type(request,APPLICATION_OCTET_STREAM);
-        if(request->m_file_stat.st_size!=0){
+        /*if(request->m_file_stat.st_size!=0){*/
             add_headers(request,request->m_file_stat.st_size);
             request->m_iv[0].iov_base = request->m_write_buf;
             request->m_iv[0].iov_len = request->m_write_idx;
@@ -505,9 +507,9 @@ int process_write(http_request_t* request,HTTP_CODE code){
             request->m_iv[1].iov_len = request->m_file_stat.st_size;
             request->m_iv_count = 2;
             return 0;
-        }else{
+        /*}else{
             //空文件的处理
-        }
+        }*/
         break;
     case POST_REQUEST://login采用父子进程的方法，获取用户数据采用函数直接调用的方式,存放在doc里的为空文件
         puts("post request process write");
@@ -592,8 +594,8 @@ int process_write(http_request_t* request,HTTP_CODE code){
                 free(request->m_post_args[2]);//作为缓冲区，存储的fd
                 if(waitid>>8==0){
                     add_status_line(request,200,ok_200_titile);
-                    add_headers(request,strlen("login successfully!"));
-                    if(add_content(request,"login successfully!")==-1) return -1;
+                    add_headers(request,strlen("upload file successfully!"));
+                    if(add_content(request,"upload file successfully!")==-1) return -1;
                 }else{
                     add_status_line(request,500,error_500_titile);
                     add_headers(request,strlen(error_500_form));
@@ -606,6 +608,7 @@ int process_write(http_request_t* request,HTTP_CODE code){
                 sprintf(request->username,"%s",".");
             }
             int ret = share_process(request->username,request->m_post_args[1]);
+            puts("share_process func ok!");
             if(ret==-1) process_write(request,FORBIDDEN_REQUEST);
             else {
                 add_status_line(request,200,ok_200_titile);
