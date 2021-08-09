@@ -211,7 +211,8 @@ int share_process(char* username,char* parms){
             return -1;
         }
     }else if(strncasecmp(cmd,"del",3)==0){//取消共享
-        sprintf(sql_str,"DELETE FROM shared WHERE url='%s%s' AND username = '%s';",username,url,username);
+        sprintf(sql_str,"DELETE FROM shared WHERE url='%s' AND username = '%s';",url+1,username);
+        puts(sql_str);
         if(mysql_real_query(mysql,sql_str,strlen(sql_str))!=0){
             fprintf(stderr,"mysql query failed:%s\n",mysql_error(mysql));
             return -1;
@@ -222,6 +223,7 @@ int share_process(char* username,char* parms){
             fprintf(stderr,"mysql del rows failed:%s\n",mysql_error(mysql));
             return -1;
         }
+        sprintf(newpath,"../doc/shared_folder%s",url);
         if(unlink(newpath)==-1) {
             perror("unlink()");
             return -1;

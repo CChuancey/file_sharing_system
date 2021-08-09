@@ -20,7 +20,7 @@ char* path=NULL;
 char* username=NULL;
 
 int main(int argc,char** argv){
-    if(argc!=4){
+    if(argc!=5){
         fprintf(stderr,"upload request parameters error!\nYour argc is %d\n",argc);
         exit(EXIT_FAILURE);
     }
@@ -38,6 +38,7 @@ int main(int argc,char** argv){
     *end++='\0';
 
     username = argv[3];
+    int file_len = atoi(argv[4]);
 
     char url[PATH_NAME_LEN+FILE_NAME_LEN];
     sprintf(url,"../doc/%s%s%s",username,path,filename);
@@ -52,11 +53,12 @@ int main(int argc,char** argv){
 
     char buf[BUFF_SIZE];
     int count=0;
-    while(1){
+    while(count<file_len){
         ssize_t len = recv(client_fd,buf,BUFF_SIZE,0);
+    //    printf("read len: %d\n",len);
         if(len==-1){
             if(errno==EAGAIN){
-                break;
+                continue;
             }
             exitErr("recv");
         }else if(len==0) break;

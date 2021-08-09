@@ -260,7 +260,7 @@ HTTP_CODE do_request(http_request_t* request){
             request->m_file_address = (char*)mmap(NULL,request->m_file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
             close(fd);
             return HTML_REQUEST;
-        }else if(strncasecmp(request->m_url+1,"get_file_list",13)==0){
+        }else if((strncasecmp(request->m_url+1,"get_file_list",13)==0)||(strncasecmp(request->m_url+1,"get_share_list",14)==0)){
             if(strncasecmp(request->m_get_params,"url=",4)!=0) return BAD_REQUEST;
             else request->m_get_params+=4;
             return HTML_REQUEST;        
@@ -299,7 +299,9 @@ HTTP_CODE do_request(http_request_t* request){
             //未登录的调试
             if(strlen(request->username)==0) request->m_post_args[3] = ".";
             else request->m_post_args[3] = request->username;
-            request->m_post_args[4] = NULL;
+            request->m_post_args[4] = (char*)malloc(sizeof(char)*10);//10位的数字.记得释放
+            sprintf(request->m_post_args[4],"%d",request->m_content_length);
+            request->m_post_args[5] = NULL;
             return POST_REQUEST;
         }else if(strncasecmp(request->m_url+1,"share",5)==0){
             puts("process share do request");
@@ -488,6 +490,15 @@ int process_write(http_request_t* request,HTTP_CODE code){
             printf("json len :%ld\n",strlen(msg));
             if(add_content(request,msg)==-1) return -1;
             break;
+        }else if(strncasecmp(request->m_url+1,"get_share_list",14)==0){
+            puts("process get share list write");
+            char path[PATH_NAME_LEN];
+            sprintf(path,"../doc/shared_folder%s",request->m_get_params);
+            char* msg = get_json_str(path);
+            puts(path);
+            assert(msg!=NULL);
+            add_headers(request,strlen(msg));
+            if(add_content(request,msg)==-1) return -1;
         }else{//根据请求的url判定是否为文件，且文件存在为空文件
             const char* ok_string = "<html><body></body></html>";
             add_headers(request,strlen(ok_string));
@@ -592,6 +603,7 @@ int process_write(http_request_t* request,HTTP_CODE code){
             default://父进程
                 wait(&waitid);
                 free(request->m_post_args[2]);//作为缓冲区，存储的fd
+                free(request->m_post_args[4]);//作为缓冲区，存储的文件大小
                 if(waitid>>8==0){
                     add_status_line(request,200,ok_200_titile);
                     add_headers(request,strlen("upload file successfully!"));
